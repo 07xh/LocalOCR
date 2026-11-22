@@ -16,9 +16,10 @@
   <main class="app">
     <section class="connect-bar" aria-label="连接服务">
       <div><strong>连接本地服务</strong><p>运行 <code>python -m localocr key</code> 获取 API Key。密钥仅保留在当前浏览器标签页。</p></div>
-      <div class="key-input"><input id="key" aria-label="API Key" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴本地 API Key"><button id="connect" class="btn primary">连接</button></div>
+      <div class="key-input"><input id="key" aria-label="API Key" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴本地 API Key"><button id="connect" class="btn primary">连接</button><button id="doctor" class="btn" type="button" title="检查本机环境，不显示密钥或文件路径">环境诊断</button></div>
       <span id="connection" role="status" class="connection">未连接</span>
     </section>
+    <pre id="doctor-output" class="training-output" hidden role="status" aria-live="polite"></pre>
     <div class="stats" aria-label="数据集概览">
       <div class="metric"><span>样本总数</span><strong id="s-total">—</strong></div>
       <div class="metric"><span>待审核</span><strong id="s-draft">—</strong></div>
