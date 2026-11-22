@@ -77,7 +77,7 @@ class FakeProcess:
 def test_training_manager_subprocess_start_status_and_finish(tmp_path, monkeypatch):
     repo, data, weights = fixture_layout(tmp_path)
     plan = build_plan(str(repo), str(data), str(weights),
-                      output_dir=tmp_path / "train-output")
+                      batch_size=2, output_dir=tmp_path / "train-output")
     process = FakeProcess()
     captured = {}
 
@@ -108,7 +108,7 @@ def test_training_manager_subprocess_start_status_and_finish(tmp_path, monkeypat
 def test_cancel_running_training_and_terminal_status(tmp_path, monkeypatch):
     repo, data, weights = fixture_layout(tmp_path)
     plan = build_plan(str(repo), str(data), str(weights),
-                      output_dir=tmp_path / "train-out")
+                      batch_size=2, output_dir=tmp_path / "train-out")
     process = FakeProcess()
     monkeypatch.setattr("localocr.training.subprocess.Popen", lambda *a, **k: process)
     monkeypatch.setattr("localocr.training.os.killpg", lambda pid, signum: process.terminate())
