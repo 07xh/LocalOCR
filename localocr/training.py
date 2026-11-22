@@ -129,6 +129,7 @@ def build_plan(
         "Global.use_gpu": use_gpu,
         "Global.distributed": False,
         "Global.epoch_num": epochs,
+        "Global.save_epoch_step": 1,  # keep actual model/optimizer/epoch state for resume
         "Train.dataset.data_dir": str(data),
         "Train.dataset.label_file_list": [str(data / "rec_gt_train.txt")],
         "Eval.dataset.data_dir": str(data),
