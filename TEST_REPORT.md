@@ -18,12 +18,20 @@
 - Windows RapidOCR + ONNX Runtime **真实推理**：**2 passed**；实际载入模型并识别英文与中文合成图片，Windows 日志采用安全的 ASCII 转义显示中文。
 - 本次成功只证明指定 CI 环境的真实推理流程可用，**不代表 Windows 图形化安装、完全断网运行、复杂真实图片准确率或模型训练已经验收**。
 
+## PR #2 合并后 CI 追加验收（2026-11-22）
+
+- CI: https://github.com/07xh/LocalOCR/actions/runs/45036464073 ，三个 job 全部通过。
+- API、识别裁剪数据集、训练任务配置与进程生命周期回归：**38 passed, 3 skipped**，工作台 JavaScript 语法检查通过。
+- Linux RapidOCR 真模型推理：**1 passed, 1 skipped**；Windows RapidOCR 真模型推理：**2 passed**。
+- 本次对训练管理的测试使用受控模拟子进程，验证路径与权重预检、固定启动参数、日志与状态、取消等流程；**没有实际执行 PaddleOCR 权重微调或宣称生成了训练好的模型**。
+- 文字识别数据集：已验证只导出已审核且明确分组的图片，支持四点框裁剪、中文标签、独立测试集和鉴权 API。
+
 ## 未完成的环境验收
 
 - **当前容器环境**：曾因 DNS/包源问题无法直接安装 RapidOCR；现已由 GitHub Actions 的 Linux/Windows 真模型运行补足该项 CI 验证，当前容器本机环境仍未安装。
 - **浏览器点击自动化**：环境提供 Chromium，但访问本机测试服务被 `ERR_BLOCKED_BY_ADMINISTRATOR` 阻断。这个结果不是应用自身的 HTTP 错误；故未完成可视化交互的浏览器实际测试。
 - **Windows EXE**：尚未生成，Windows 实机运行与首次模型缓存均未验收。
-- **真正模型训练**：尚未实现；当前只有人工标注、审核和结构化数据集导出。
+- **真正模型训练**：已有本地 PaddleOCR 训练启动/取消/日志 API 与工作台入口，尚未在安装 PaddlePaddle 的真实训练环境验证完整微调，尚缺断点恢复和产物评估。
 
 ## 安全与使用范围
 
