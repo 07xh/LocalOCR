@@ -18,6 +18,9 @@ def main() -> int:
     studio.add_argument("--no-browser", action="store_true", help="do not automatically open a browser")
     sub.add_parser("key", help="display local API key (keep private)")
     sub.add_parser("engines", help="show locally available OCR backends")
+    doctor = sub.add_parser("doctor", help="check bundled models, local storage and Studio assets")
+    doctor.add_argument("--deep", action="store_true", help="run synthetic local RapidOCR inference")
+
     recog = sub.add_parser("recognize", help="recognize a local image file")
     recog.add_argument("image", type=Path)
     recog.add_argument("--engine", choices=["auto", "rapidocr", "tesseract"], default="auto")
@@ -28,6 +31,11 @@ def main() -> int:
     if args.command == "engines":
         print(json.dumps(OCRService.backends(), ensure_ascii=False))
         return 0
+    if args.command == "doctor":
+        from .doctor import diagnose
+        report = diagnose(deep=args.deep)
+        print(json.dumps(report, ensure_ascii=True, indent=2))
+        return 0 if report["ready"] else 1
     if args.command in ("serve", "studio"):
         if not 1024 <= args.port <= 65535:
             parser.error("port must be 1024-65535")
