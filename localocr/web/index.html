@@ -81,6 +81,8 @@
           <label for="model-file">模型权重文件名</label><input id="model-file" autocomplete="off" value="best_accuracy.pdparams">
         </div>
         <div class="training-actions"><button id="model-register" type="button" class="btn">登记训练产物（不自动启用）</button></div>
+        <p class="fineprint">当前仅能登记本机训练检查点及 SHA-256，暂不支持将 .pdparams 直接作为 RapidOCR 的 ONNX 模型加载；模型版本不能一键切换或回滚。下方可查看每个版本是否完成验证。</p>
+        <pre id="model-output" class="training-output" role="status">尚未查询本地模型版本。</pre>
         <h3>一键本地 OCR 准确率评估</h3>
         <p class="fineprint">直接使用当前本机 OCR 引擎对「已审核 + 测试集」的文字框进行裁剪推理，统计字符错误率（CER）、精确匹配率和平均推理耗时。一次最多评估 5 张图片、40 个文字区域；不会修改标注、训练模型或上传图片。没有正确标注时请先在上方人工审核并将图片划为测试集。</p>
         <div class="training-actions">
@@ -92,7 +94,10 @@
           </select>
           <button id="eval-local-run" type="button" class="btn primary">评估测试集（首批）</button>
           <button id="eval-local-next" type="button" class="btn" disabled>评估下一批</button>
+          <button id="eval-local-all" type="button" class="btn">批量汇总（最多 150 张）</button>
+          <button id="eval-local-stop" type="button" class="btn" disabled>停止批量评估</button>
         </div>
+        <p class="fineprint">批量汇总仅在当前页面临时计算，不保存图片或预测结果；按样本数与字符数加权合并，不能直接平均各批次准确率。过程中可以停止，未完成时会明确标注为部分结果。</p>
         <h3>离线识别评估（已有方式）</h3>
         <p class="fineprint">把同一模型在保留测试集上的识别结果整理成 JSONL：每行为 {"image":"rec/test/....png","text":"识别结果"}。只统计测试集，不使用训练/验证集评估。</p>
         <div class="training-fields">

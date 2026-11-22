@@ -39,6 +39,13 @@ def evaluate_reviewed_test(store: DatasetStore, service: OCRService,
     exact = 0
     elapsed = 0
     processed = 0
+    empty_predictions = 0
+    latency_samples: list[int] = []
+    length_groups = {
+        "1-4": {"regions": 0, "exact_matches": 0, "edit_errors": 0, "reference_characters": 0},
+        "5-12": {"regions": 0, "exact_matches": 0, "edit_errors": 0, "reference_characters": 0},
+        "13+": {"regions": 0, "exact_matches": 0, "edit_errors": 0, "reference_characters": 0},
+    }
     engines: set[str] = set()
     mistakes: list[dict] = []
     for item in page["items"]:
@@ -57,6 +64,14 @@ def evaluate_reviewed_test(store: DatasetStore, service: OCRService,
             exact += int(expected == predicted)
             elapsed += result.elapsed_ms
             processed += 1
+            empty_predictions += int(not predicted)
+            latency_samples.append(max(0, result.elapsed_ms))
+            band = "1-4" if len(expected) <= 4 else "5-12" if len(expected) <= 12 else "13+"
+            group = length_groups[band]
+            group["regions"] += 1
+            group["exact_matches"] += int(expected == predicted)
+            group["edit_errors"] += distance
+            group["reference_characters"] += len(expected)
             engines.add(result.engine)
             if distance and len(mistakes) < 10:
                 mistakes.append({
@@ -66,12 +81,24 @@ def evaluate_reviewed_test(store: DatasetStore, service: OCRService,
                 })
     if not characters:
         raise DatasetError("Reviewed test labels must not all be empty")
+    # If labels changed while OCR was running, reject the inconsistent page.
+    if store.reviewed_test_page(limit=1, offset=0)["fingerprint"] != page["fingerprint"]:
+        raise DatasetError("Reviewed test dataset changed during evaluation; retry")
+    for group in length_groups.values():
+        group["exact_match_rate"] = (round(group["exact_matches"] / group["regions"], 6)
+                                     if group["regions"] else None)
+        group["cer"] = (round(group["edit_errors"] / group["reference_characters"], 6)
+                        if group["reference_characters"] else None)
+    latency_samples.sort()
+    p50 = latency_samples[(len(latency_samples) - 1) // 2]
+    p90 = latency_samples[max(0, (9 * len(latency_samples) + 9) // 10 - 1)]
     return {
         "status": "evaluated_local_engine",
         "evaluated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "split": "test", "reviewed_only": True,
         "requested_engine": engine, "actual_engines": sorted(engines),
         "available_test_samples": page["total"],
+        "dataset_fingerprint": page["fingerprint"],
         "offset": offset, "next_offset": offset + len(page["items"]),
         "has_more": offset + len(page["items"]) < page["total"],
         "evaluated_samples": len(page["items"]), "evaluated_regions": processed,
@@ -80,6 +107,12 @@ def evaluate_reviewed_test(store: DatasetStore, service: OCRService,
         "cer": round(errors / characters, 6),
         "inference_ms_total": elapsed,
         "inference_ms_mean": round(elapsed / processed, 2),
+        "quality": {
+            "empty_predictions": empty_predictions,
+            "latency_ms_p50": p50,
+            "latency_ms_p90": p90,
+            "by_reference_length": length_groups,
+        },
         "error_examples": mistakes,
         "note": "Measured local OCR on manually reviewed held-out test crops only. "
                 "No text detection metric, model training, credential handling or remote validation.",

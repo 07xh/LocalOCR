@@ -182,14 +182,24 @@ class DatasetStore:
         if not isinstance(limit, int) or not 1 <= limit <= 20 or not isinstance(offset, int) or offset < 0:
             raise DatasetError("limit must be 1..20 and offset must be non-negative")
         with self._connect() as con:
-            total = con.execute(
-                "SELECT COUNT(*) FROM samples WHERE status='reviewed' AND split='test'"
-            ).fetchone()[0]
+            # A single read transaction prevents counting one revision and
+            # returning another revision if the editor saves during this call.
+            con.execute("BEGIN")
+            versions = con.execute(
+                """SELECT id,revision FROM samples
+                   WHERE status='reviewed' AND split='test' ORDER BY id ASC"""
+            ).fetchall()
             rows = con.execute(
                 """SELECT * FROM samples WHERE status='reviewed' AND split='test'
                    ORDER BY id ASC LIMIT ? OFFSET ?""", (limit, offset)
             ).fetchall()
-        return {"total": total, "items": [self._as_dict(r) for r in rows]}
+        fingerprint = sha256(json.dumps(
+            [[r["id"], r["revision"]] for r in versions],
+            separators=(",", ":")
+        ).encode("utf-8")).hexdigest()
+        return {"total": len(versions),
+                "fingerprint": fingerprint,
+                "items": [self._as_dict(r) for r in rows]}
 
     def put_annotations(self, sample_id: str, expected_revision: int, lines: list) -> dict:
         with self._lock:
