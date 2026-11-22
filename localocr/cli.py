@@ -39,7 +39,9 @@ def main() -> int:
                 import threading
                 import webbrowser
                 threading.Timer(1.0, lambda: webbrowser.open("http://127.0.0.1:%d/studio" % args.port)).start()
-        uvicorn.run("localocr.api:app", host="127.0.0.1", port=args.port, workers=1)
+        # Use a direct app import so frozen builds do not rely on dynamic module lookup.
+        from .api import app
+        uvicorn.run(app, host="127.0.0.1", port=args.port, workers=1)
         return 0
     if args.command == "recognize":
         try:
