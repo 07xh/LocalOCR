@@ -234,7 +234,10 @@
       pretrained_model: el('train-weight').value.trim(),
       epochs: Number(el('train-epochs').value),
       batch_size: Number(el('train-batch').value),
-      use_gpu: el('train-gpu').value === 'true'
+      use_gpu: el('train-gpu').value === 'true',
+      ...(el('train-resume-id').value.trim()
+        ? {resume_run_id: el('train-resume-id').value.trim(),
+           resume_checkpoint: el('train-resume-checkpoint').value} : {})
     };
   }
   async function trainingPlan() {
@@ -244,6 +247,7 @@
       '配置校验通过。训练数 ' + plan.train_count + ' · 验证数 ' +
       plan.val_count + ' · 保留测试数 ' + plan.test_count +
       '\n模型输出: ' + plan.output_dir +
+      (plan.resume_from ? '\n恢复自: ' + plan.resume_from.run_id + ' / ' + plan.resume_from.checkpoint : '') +
       '\n请确认数据和预训练权重来源后再点击启动。';
   }
   async function trainingStart() {
