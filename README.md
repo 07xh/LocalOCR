@@ -8,7 +8,7 @@
 - **API**：只绑定本机 `127.0.0.1:18765` 的 FastAPI 服务，需要持久化随机 API Key；Base64 PNG/JPEG/WEBP/BMP/TIFF 输入。
 - **数据集**：本地 SQLite + 原图转 PNG，重复图片去重、人工审核、版本冲突保护、train/val/test 数据集分组、原 JSONL ZIP 导出，并新增 PaddleOCR **文字检测**和**文字识别**训练数据 ZIP（仅人工审核数据，不改变原 API）。
 - **标注界面**：内置本地页面，支持导入、预览、鼠标框选、OCR 建议、手动纠错、保存、审核。
-- **测试**：原有 25 项 Python 单元/API 测试与真实 Tesseract OCR 此前通过；新增 PaddleOCR 格式/API 回归测试和 Linux/Windows RapidOCR **真实模型** CI 验收流程，最新 CI 已通过：单元/API 回归 29 passed、3 skipped，Linux 真模型 1 passed、1 skipped，Windows 真模型 2 passed。Windows 浏览器交互与实际部署仍需验收。
+- **测试**：原有 25 项 Python 单元/API 测试与真实 Tesseract OCR 此前通过；新增 PaddleOCR 格式/API 回归测试和 Linux/Windows RapidOCR **真实模型** CI 验收流程，最新 CI 已通过：单元/API 回归 38 passed、3 skipped，Linux 真模型 1 passed、1 skipped，Windows 真模型 2 passed。Windows 浏览器交互与实际部署仍需验收。
 
 ## Windows 安装（推荐 Windows 10/11，Python 3.10+）
 
