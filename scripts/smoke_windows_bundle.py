@@ -73,6 +73,8 @@ def main() -> int:
             assert "LocalOCR" in response.read().decode("utf-8")
         with urlopen("http://127.0.0.1:18769/assets/studio.js", timeout=5) as response:
             assert b"trainingConfig" in response.read()
+        with urlopen("http://127.0.0.1:18769/assets/quality_report.js", timeout=5) as response:
+            assert b"LocalOCRQualityReport" in response.read()
         try:
             urlopen(Request("http://127.0.0.1:18769/v1/engines"), timeout=5)
         except Exception as error:
