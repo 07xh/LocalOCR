@@ -42,12 +42,21 @@
 - 已测试本地断点续训参数构造、来源任务限制、`.pdparams/.pdopt/.states` 检查、标签哈希变更拒绝、已完成任务轮次保护、历史检查点候选及 API 鉴权。
 - **仍未完成 PaddleOCR 真实模型分段训练再恢复**，因此不能宣称现有功能已实机验证到最终精度。
 
+## PR #7 PaddleOCR 真实训练与续训验收（2026-11-22）
+
+- CI：https://github.com/07xh/LocalOCR/actions/runs/45040287913 ，真实训练 job、回归 job 均通过；PR #7 已合并。
+- 环境：Linux GitHub Actions，PaddlePaddle 3.3.1，PaddleOCR 官方源码及 PP-OCRv5 mobile-rec 官方预训练权重。
+- **第一阶段实际执行模型参数训练**，输出 `latest.pdparams`、`latest.pdopt` 与 `latest.states` 三种非空检查点。
+- **第二阶段实际使用第一阶段检查点恢复训练**，再次生成完整的检查点。
+- 通过 PaddleOCR 官方 `tools/infer_rec.py` 加载第二阶段模型执行真实推理，日志包含 `REAL_PADDLE_TRAIN_RESUME_OK`。
+- 数据为生成的普通英文字样本，流程通过**不能推断其在真实文档、手机截图等场景的准确率**，也不能代表 Windows 端微调已验收。
+
 ## 未完成的环境验收
 
 - **当前容器环境**：曾因 DNS/包源问题无法直接安装 RapidOCR；现已由 GitHub Actions 的 Linux/Windows 真模型运行补足该项 CI 验证，当前容器本机环境仍未安装。
 - **浏览器点击自动化**：环境提供 Chromium，但访问本机测试服务被 `ERR_BLOCKED_BY_ADMINISTRATOR` 阻断。这个结果不是应用自身的 HTTP 错误；故未完成可视化交互的浏览器实际测试。
 - **Windows EXE**：尚未生成，Windows 实机运行与首次模型缓存均未验收。
-- **真正模型训练**：已有本地 PaddleOCR 训练启动/取消/日志 API 与工作台入口，尚未在安装 PaddlePaddle 的真实训练环境验证完整微调，尚缺断点恢复和产物评估。
+- **真正模型训练**：Linux CI 已用合成数据跑通实际训练、检查点恢复及推理；Windows 本机、真实图片精度、模型版本启用和回滚仍未验收。
 
 ## 安全与使用范围
 
