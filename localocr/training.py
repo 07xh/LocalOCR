@@ -211,6 +211,16 @@ class TrainingManager:
             result["model_files"] = sorted(
                 p.name for p in root.glob("*.pdparams") if p.is_file()
             )[:50]
+            # PaddleOCR outputs epoch: [N/TOTAL] in its normal training log.
+            # Parsed progress is informative, not a guarantee of final quality.
+            tail = result.get("log_tail", "")
+            matches = re.findall(r"epoch:\\s*\\[(\\d+)\\s*/\\s*(\\d+)\\]", tail)
+            if matches:
+                current, total = map(int, matches[-1])
+                if total > 0:
+                    result["epoch_current"] = min(current, total)
+                    result["epoch_total"] = total
+                    result["epoch_percent"] = round(100 * min(current, total) / total, 1)
             return result
 
     def cancel(self) -> dict:
