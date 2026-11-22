@@ -297,6 +297,142 @@
       })
     }));
   }));
+  let allEvaluationRunning = false;
+  let stopAllEvaluation = false;
+  const MAX_BATCH_EVALUATION_IMAGES = 150;
+  const lengthBuckets = ['1-4', '5-12', '13+'];
+  const makeAggregate = () => ({
+    samples: 0, regions: 0, exact: 0, errors: 0, chars: 0,
+    elapsed: 0, blanks: 0, engines: new Set(), examples: [],
+    groups: Object.fromEntries(lengthBuckets.map(k => [k,
+      {regions: 0, exact_matches: 0, edit_errors: 0, reference_characters: 0}]))
+  });
+  function includePage(aggregate, page) {
+    aggregate.samples += page.evaluated_samples;
+    aggregate.regions += page.evaluated_regions;
+    aggregate.exact += page.exact_matches;
+    aggregate.errors += page.edit_errors;
+    aggregate.chars += page.reference_characters;
+    aggregate.elapsed += page.inference_ms_total;
+    aggregate.blanks += page.quality.empty_predictions;
+    for (const name of page.actual_engines) aggregate.engines.add(name);
+    for (const key of lengthBuckets) {
+      const source = page.quality.by_reference_length[key];
+      const target = aggregate.groups[key];
+      target.regions += source.regions;
+      target.exact_matches += source.exact_matches;
+      target.edit_errors += source.edit_errors;
+      target.reference_characters += source.reference_characters;
+    }
+    for (const item of page.error_examples) {
+      if (aggregate.examples.length >= 10) break;
+      aggregate.examples.push(item);
+    }
+  }
+  function aggregateDisplay(aggregate, completed, available, info) {
+    const pct = (value, total) => total ? (100 * value / total).toFixed(2) + '%' : '—';
+    const lines = [
+      '本地 OCR 测试集汇总 · ' + info,
+      '已评估：' + aggregate.samples + ' / ' + (available ?? '?') + ' 张图片；' +
+        aggregate.regions + ' 个文字区域',
+      '引擎：' + [...aggregate.engines].join(', '),
+      '区域完全匹配：' + aggregate.exact + '/' + aggregate.regions +
+        '（' + pct(aggregate.exact, aggregate.regions) + '）',
+      '字符错误率 CER：' + pct(aggregate.errors, aggregate.chars) +
+        '（' + aggregate.errors + ' 编辑错误 / ' + aggregate.chars + ' 个参考字符）',
+      '未识别文字的区域：' + aggregate.blanks,
+      '平均推理耗时：' + (aggregate.regions
+        ? (aggregate.elapsed / aggregate.regions).toFixed(2) + ' ms/区域' : '—'),
+      '按参考文字长度分析：'
+    ];
+    for (const name of lengthBuckets) {
+      const group = aggregate.groups[name];
+      lines.push('  ' + name + ' 字符：' + group.regions + ' 区域，完全匹配 ' +
+        pct(group.exact_matches, group.regions) + '，CER ' +
+        pct(group.edit_errors, group.reference_characters));
+    }
+    lines.push(completed ? '所有当前测试集样本已评估。'
+      : '注意：未覆盖全部测试集，当前准确率仅代表已评估部分。');
+    lines.push('错误样本索引（不包含原始文字）：');
+    lines.push(JSON.stringify(aggregate.examples, null, 2));
+    return lines.join('\n');
+  }
+  async function runAggregateEvaluation() {
+    if (allEvaluationRunning) return;
+    allEvaluationRunning = true;
+    stopAllEvaluation = false;
+    const select = el('eval-local-engine');
+    const first = el('eval-local-run');
+    const next = el('eval-local-next');
+    const all = el('eval-local-all');
+    const stop = el('eval-local-stop');
+    const engineName = select.value;
+    const previousNextDisabled = next.disabled;
+    select.disabled = true;
+    first.disabled = true;
+    next.disabled = true;
+    all.disabled = true;
+    stop.disabled = false;
+    const accumulator = makeAggregate();
+    let offset = 0;
+    let available = null;
+    let completed = false;
+    try {
+      while (!stopAllEvaluation && accumulator.samples < MAX_BATCH_EVALUATION_IMAGES) {
+        let limit = Math.min(5, MAX_BATCH_EVALUATION_IMAGES - accumulator.samples);
+        let page;
+        while (true) {
+          try {
+            page = await request('/v1/evaluation/reviewed-test', {
+              method: 'POST', body: JSON.stringify({engine: engineName, limit, offset})
+            });
+            break;
+          } catch (error) {
+            // A few samples contain >8 text boxes; retry with a smaller page.
+            // A single image with >40 boxes remains a hard safety error.
+            if (limit > 1 && String(error.message).includes('1..40 annotated regions')) {
+              limit = 1;
+            } else {
+              throw error;
+            }
+          }
+        }
+        if (available === null) available = page.available_test_samples;
+        if (available !== page.available_test_samples || page.offset !== offset ||
+            page.next_offset <= offset) {
+          throw new Error('测试集数量或分页已变化，请重新开始评估，避免统计重复或漏项');
+        }
+        includePage(accumulator, page);
+        offset = page.next_offset;
+        completed = !page.has_more;
+        el('aux-output').textContent = aggregateDisplay(
+          accumulator, completed, available, completed ? '全部完成' : '正在逐批汇总');
+        if (completed) break;
+      }
+      const info = completed ? '全部完成' : stopAllEvaluation ? '用户停止' : '达到单次 150 张图片上限';
+      el('aux-output').textContent = aggregateDisplay(accumulator, completed, available, info);
+      toast(completed ? '测试集已完整评估，使用总编辑错误数计算 CER'
+        : '评估已停止或达到上限，结果为部分测试集');
+    } catch (error) {
+      el('aux-output').textContent = aggregateDisplay(
+        accumulator, false, available, '未完成（中途出错）');
+      throw error;
+    } finally {
+      allEvaluationRunning = false;
+      stop.disabled = true;
+      select.disabled = false;
+      first.disabled = false;
+      next.disabled = previousNextDisabled;
+      all.disabled = false;
+    }
+  }
+  el('eval-local-all').addEventListener('click', () => attempt(runAggregateEvaluation));
+  el('eval-local-stop').addEventListener('click', () => {
+    stopAllEvaluation = true;
+    el('eval-local-stop').disabled = true;
+    toast('已请求停止，当前单次识别结束后停止汇总');
+  });
+
   let evaluatedNextOffset = 0;
   async function runLocalBenchmark(nextPage = false) {
     const offset = nextPage ? evaluatedNextOffset : 0;
