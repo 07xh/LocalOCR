@@ -6,6 +6,7 @@ official local PaddleOCR tools/train.py entrypoint with a fixed config.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from hashlib import sha256
 import json
 import os
 from pathlib import Path
@@ -48,6 +49,8 @@ def build_plan(
     paddle_repo: str, dataset_dir: str, pretrained_model: str,
     *, epochs: int = 10, batch_size: int = 4, use_gpu: bool = False,
     output_dir: Path | None = None,
+    resume_run_id: str | None = None, resume_checkpoint: str = "latest",
+    resume_root: Path | None = None,
 ) -> dict:
     """Validate all local inputs and build a fixed, shell-free command."""
     repo = Path(paddle_repo).expanduser().resolve()
@@ -74,11 +77,54 @@ def build_plan(
     if train < batch_size:
         raise TrainingError("Training crops must be >= batch size")
 
+    # Resume is deliberately restricted to checkpoints in an existing local
+    # run and requires the matching optimizer and epoch metadata. A bare
+    # pretrained .pdparams file is NOT a resumable training checkpoint.
+    config_name = "configs/rec/PP-OCRv5/PP-OCRv5_mobile_rec.yml"
+    config_identity = {
+        "paddle_repo": str(repo), "dataset_dir": str(data),
+        "pretrained_model": str(weights), "batch_size": batch_size,
+        "use_gpu": use_gpu, "config_file": config_name,
+        "train_labels_sha256": sha256((data / "rec_gt_train.txt").read_bytes()).hexdigest(),
+        "val_labels_sha256": sha256((data / "rec_gt_val.txt").read_bytes()).hexdigest(),
+    }
+    source_run = None
+    checkpoint_prefix = None
+    if resume_run_id is not None:
+        if not isinstance(resume_run_id, str) or not re.fullmatch(r"[a-f0-9]{32}", resume_run_id):
+            raise TrainingError("Resume run ID must be a 32-digit local run identifier")
+        if resume_checkpoint not in ("latest", "best_accuracy"):
+            raise TrainingError("Resume checkpoint must be latest or best_accuracy")
+        root = (resume_root or config_dir() / "training" / "runs").resolve()
+        folder = (root / resume_run_id).resolve()
+        if folder.parent != root or not folder.is_dir():
+            raise TrainingError("Resume source run does not exist")
+        status_file = folder / "status.json"
+        try:
+            prior = json.loads(status_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise TrainingError("Resume source has no valid saved status") from exc
+        if (prior.get("id") != resume_run_id
+                or prior.get("status") not in ("failed", "cancelled", "completed")):
+            raise TrainingError("Cannot resume an active or unverified training run")
+        if prior.get("training_config") != config_identity:
+            raise TrainingError("Resume configuration or training labels have changed")
+        if prior.get("status") == "completed" and epochs <= prior.get("epochs", 0):
+            raise TrainingError("Completed run requires a greater target epoch count")
+        checkpoint_prefix = (folder / resume_checkpoint).resolve()
+        if checkpoint_prefix.parent != folder:
+            raise TrainingError("Resume checkpoint must remain inside its source run")
+        for extension in (".pdparams", ".pdopt", ".states"):
+            if not Path(str(checkpoint_prefix) + extension).is_file():
+                raise TrainingError("Resume checkpoint lacks " + extension + " file")
+        source_run = {"run_id": resume_run_id, "checkpoint": resume_checkpoint}
+
     # Model configurations are trusted files in the local official PaddleOCR checkout.
     # All paths are JSON-string encoded as YAML-compatible string/list values.
     output = (output_dir or config_dir() / "training" / "runs" / uuid4().hex).resolve()
     options = {
-        "Global.pretrained_model": str(weights),
+        "Global.pretrained_model": "" if checkpoint_prefix else str(weights),
+        "Global.checkpoints": str(checkpoint_prefix) if checkpoint_prefix else "",
         "Global.save_model_dir": str(output),
         "Global.use_gpu": use_gpu,
         "Global.distributed": False,
@@ -99,6 +145,7 @@ def build_plan(
         "cwd": str(repo), "args": args, "output_dir": str(output),
         "train_count": train, "val_count": val, "test_count": test,
         "epochs": epochs, "batch_size": batch_size, "use_gpu": use_gpu,
+        "training_config": config_identity, "resume_from": source_run,
         "note": "PaddleOCR training process requires PaddlePaddle in this Python environment. "
                 "Test split is reserved and never passed to the trainer.",
     }
@@ -180,6 +227,8 @@ class TrainingManager:
                 "output_dir": str(out), "exit_code": None,
                 "train_count": plan["train_count"], "val_count": plan["val_count"],
                 "test_count": plan["test_count"], "epochs": plan["epochs"],
+                "training_config": plan.get("training_config"),
+                "resume_from": plan.get("resume_from"),
             }
             self._persist()
             return self.status()
