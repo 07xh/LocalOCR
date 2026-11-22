@@ -26,6 +26,14 @@
 - 本次对训练管理的测试使用受控模拟子进程，验证路径与权重预检、固定启动参数、日志与状态、取消等流程；**没有实际执行 PaddleOCR 权重微调或宣称生成了训练好的模型**。
 - 文字识别数据集：已验证只导出已审核且明确分组的图片，支持四点框裁剪、中文标签、独立测试集和鉴权 API。
 
+## PR #3 追加 CI 验收（2026-11-22）
+
+- [GitHub Actions 运行记录](https://github.com/07xh/LocalOCR/actions/runs/45037746723)：3 个 job 全部成功。
+- Linux API/数据集/训练/模型管理回归：**44 passed, 3 skipped**，工作台 JavaScript 语法检查通过。
+- Linux RapidOCR 真模型推理：**1 passed, 1 skipped**；Windows RapidOCR 真模型推理：**2 passed**。
+- 新增独立测试集 CER/整行正确率离线计分器、训练记录持久化与历史、模型元数据 SHA-256 登记；新增部分均完成单元/API 测试。
+- **限制**：模型注册不验证其可被推理引擎加载；离线评估使用用户提供的预测 JSONL；尚未完成真实 PaddleOCR 模型微调、Windows 桌面端训练、模型切换与回滚验收。
+
 ## 未完成的环境验收
 
 - **当前容器环境**：曾因 DNS/包源问题无法直接安装 RapidOCR；现已由 GitHub Actions 的 Linux/Windows 真模型运行补足该项 CI 验证，当前容器本机环境仍未安装。
