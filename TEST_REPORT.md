@@ -10,9 +10,17 @@
 - 真实 HTTP 子进程链路：`/health` → `/v1/ocr` → 图片导入 → OCR 建议 → 标注保存 → 审核 → ZIP 导出，全部通过；图像返回 `LocalOCR 2026`（当次行置信度约 0.93），未授权 API 请求返回 401。
 - 浏览器工作台：HTML、CSS、JavaScript 均能由 FastAPI 返回，API 需 X-API-Key；后端测试覆盖导入、去重、保存、审核、导出、删改冲突和只读 OCR 建议。
 
-## 未通过环境验收的部分
+## PR #1 合并后 CI 追加验收（2026-11-22）
 
-- **RapidOCR 真实模型推理**：环境中未安装 RapidOCR / ONNX Runtime；尝试安装时 DNS/包源连接失败。代码与官方 3.x 输出结构一致，但不能把“适配器”当成真实模型验收。
+- CI run: https://github.com/07xh/LocalOCR/actions/runs/45035599010 ，全部三个 job 通过。
+- Linux API / dataset 回归：**29 passed, 3 skipped**；JS 语法检查通过；检测数据集新导出格式、审核限定、API 鉴权及原 JSONL 导出兼容性测试已覆盖。
+- Linux RapidOCR + ONNX Runtime **真实推理**：**1 passed, 1 skipped**（中文字体不可用，中文测试跳过）。
+- Windows RapidOCR + ONNX Runtime **真实推理**：**2 passed**；实际载入模型并识别英文与中文合成图片，Windows 日志采用安全的 ASCII 转义显示中文。
+- 本次成功只证明指定 CI 环境的真实推理流程可用，**不代表 Windows 图形化安装、完全断网运行、复杂真实图片准确率或模型训练已经验收**。
+
+## 未完成的环境验收
+
+- **当前容器环境**：曾因 DNS/包源问题无法直接安装 RapidOCR；现已由 GitHub Actions 的 Linux/Windows 真模型运行补足该项 CI 验证，当前容器本机环境仍未安装。
 - **浏览器点击自动化**：环境提供 Chromium，但访问本机测试服务被 `ERR_BLOCKED_BY_ADMINISTRATOR` 阻断。这个结果不是应用自身的 HTTP 错误；故未完成可视化交互的浏览器实际测试。
 - **Windows EXE**：尚未生成，Windows 实机运行与首次模型缓存均未验收。
 - **真正模型训练**：尚未实现；当前只有人工标注、审核和结构化数据集导出。
