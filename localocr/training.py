@@ -83,6 +83,22 @@ def build_plan(
         raise TrainingError("Choose an existing Python interpreter (python.exe or python3)")
     if getattr(sys, "frozen", False) and python == Path(sys.executable).resolve():
         raise TrainingError("Select an external Python interpreter, not LocalOCR.exe")
+    if training_python:
+        # An explicit interpreter must really have PaddlePaddle available.
+        # Never attempt installation or make remote requests here.
+        try:
+            check = subprocess.run(
+                [str(python), "-c", "import paddle; print(paddle.__version__)"],
+                stdin=subprocess.DEVNULL, capture_output=True, timeout=20,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise TrainingError("Cannot start the selected PaddlePaddle Python interpreter") from exc
+        if check.returncode != 0:
+            raise TrainingError(
+                "The selected Python cannot import PaddlePaddle; "
+                "install a compatible PaddlePaddle package in that environment"
+            )
 
     if isinstance(epochs, bool) or not isinstance(epochs, int) or not 1 <= epochs <= 50:
         raise TrainingError("epochs must be 1–50")
