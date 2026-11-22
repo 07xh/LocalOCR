@@ -8,6 +8,8 @@ on:
       - 'scripts/smoke_windows_bundle.py'
       - '.github/workflows/windows-exe.yml'
       - 'pyproject.toml'
+  push:
+    branches: [main, feat/windows-package-training-smoke-20261122]
   workflow_dispatch:
 
 jobs:
