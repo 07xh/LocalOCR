@@ -51,11 +51,20 @@
 - 通过 PaddleOCR 官方 `tools/infer_rec.py` 加载第二阶段模型执行真实推理，日志包含 `REAL_PADDLE_TRAIN_RESUME_OK`。
 - 数据为生成的普通英文字样本，流程通过**不能推断其在真实文档、手机截图等场景的准确率**，也不能代表 Windows 端微调已验收。
 
+## PR #6 Windows 便携版实测（2026-11-22）
+
+- GitHub Actions：https://github.com/07xh/LocalOCR/actions/runs/45040980898 ，Windows `portable` job 成功，PR #6 已合并。
+- PyInstaller **onedir** 便携包，含 RapidOCR/ONNX 依赖、模型文件和本地网页资源；已打包并上传为 Actions Artifact。
+- 生成的 **LocalOCR.exe** 实际在 Windows Runner 上运行，成功加载模型并识别 `HELLO 2026` 测试图片。
+- 以 EXE 实际启动本机 FastAPI Studio，`/health`、`/studio`、工作台 JS 资源成功返回，未经授权 `/v1/engines` 按预期返回 HTTP 401。
+- 产物：`LocalOCR-Windows-x64-portable`，约 133.7 MB，[下载入口](https://github.com/07xh/LocalOCR/actions/runs/45040980898/artifacts/14761518276)；此为 GitHub Actions 限期保留的构建产物，**尚未创建正式 Release**。
+- 未验证完全断网安装、不同 Windows 10/11 设备的浏览器真实交互或 Windows 端 PaddleOCR 训练。
+
 ## 未完成的环境验收
 
 - **当前容器环境**：曾因 DNS/包源问题无法直接安装 RapidOCR；现已由 GitHub Actions 的 Linux/Windows 真模型运行补足该项 CI 验证，当前容器本机环境仍未安装。
 - **浏览器点击自动化**：环境提供 Chromium，但访问本机测试服务被 `ERR_BLOCKED_BY_ADMINISTRATOR` 阻断。这个结果不是应用自身的 HTTP 错误；故未完成可视化交互的浏览器实际测试。
-- **Windows EXE**：尚未生成，Windows 实机运行与首次模型缓存均未验收。
+- **Windows EXE**：已在 Windows Runner 成功打包并完成真实识别 + 本地 HTTP 服务测试；个人 Windows 设备、浏览器点击与完全断网体验尚未验收。
 - **真正模型训练**：Linux CI 已用合成数据跑通实际训练、检查点恢复及推理；Windows 本机、真实图片精度、模型版本启用和回滚仍未验收。
 
 ## 安全与使用范围
