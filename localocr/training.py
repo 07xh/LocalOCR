@@ -80,7 +80,6 @@ def build_plan(
     # Resume is deliberately restricted to checkpoints in an existing local
     # run and requires the matching optimizer and epoch metadata. A bare
     # pretrained .pdparams file is NOT a resumable training checkpoint.
-    config_name = "configs/rec/PP-OCRv5/PP-OCRv5_mobile_rec.yml"
     config_identity = {
         "paddle_repo": str(repo), "dataset_dir": str(data),
         "pretrained_model": str(weights), "batch_size": batch_size,
@@ -115,8 +114,9 @@ def build_plan(
         if checkpoint_prefix.parent != folder:
             raise TrainingError("Resume checkpoint must remain inside its source run")
         for extension in (".pdparams", ".pdopt", ".states"):
-            if not Path(str(checkpoint_prefix) + extension).is_file():
-                raise TrainingError("Resume checkpoint lacks " + extension + " file")
+            artifact = Path(str(checkpoint_prefix) + extension)
+            if not artifact.is_file() or artifact.resolve().parent != folder:
+                raise TrainingError("Resume checkpoint lacks safe " + extension + " file")
         source_run = {"run_id": resume_run_id, "checkpoint": resume_checkpoint}
 
     # Model configurations are trusted files in the local official PaddleOCR checkout.
