@@ -1,0 +1,42 @@
+name: PaddleOCR real CPU fine-tuning and checkpoint-resume integration
+
+on:
+  pull_request:
+    paths:
+      - 'localocr/training.py'
+      - 'scripts/real_paddle_training_smoke.py'
+      - '.github/workflows/paddle-training-integration.yml'
+  workflow_dispatch:
+
+jobs:
+  real-training:
+    runs-on: ubuntu-latest
+    timeout-minutes: 42
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install official PaddlePaddle and PaddleOCR training dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/PaddlePaddle/PaddleOCR.git "$RUNNER_TEMP/PaddleOCR"
+          git -C "$RUNNER_TEMP/PaddleOCR" rev-parse HEAD
+          python -m pip install -e .
+          python -m pip install "paddlepaddle>=3.2,<4"
+          python -m pip install -r "$RUNNER_TEMP/PaddleOCR/requirements.txt"
+          python -c "import paddle; print('PaddlePaddle:', paddle.__version__)"
+      - name: Fetch official pretrained mobile text-recognition weights
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 240             --output "$RUNNER_TEMP/PP-OCRv5_mobile_rec_pretrained.pdparams"             "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_pretrained_model/PP-OCRv5_mobile_rec_pretrained.pdparams"
+          test $(wc -c < "$RUNNER_TEMP/PP-OCRv5_mobile_rec_pretrained.pdparams") -gt 1000000
+      - name: Real 1-epoch train, save model + optimizer state, resume to 2 epochs
+        shell: bash
+        env:
+          FLAGS_enable_pir_api: "0"
+          FLAGS_allocator_strategy: "auto_growth"
+        run: |
+          python -u scripts/real_paddle_training_smoke.py             "$RUNNER_TEMP/PaddleOCR"             "$RUNNER_TEMP/PP-OCRv5_mobile_rec_pretrained.pdparams"             "$RUNNER_TEMP/localocr-real-training"
