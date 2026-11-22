@@ -26,8 +26,11 @@ def main() -> int:
     assert any("rec" in file.name.lower() for file in models), "Missing recognition model"
     env_result = subprocess.run(
         [str(exe), "engines"], cwd=cwd, env=environment,
-        capture_output=True, text=True, timeout=60, check=True,
+        capture_output=True, text=True, timeout=60, check=False,
     )
+    if env_result.returncode:
+        raise AssertionError("Frozen CLI failed:\n" +
+                             (env_result.stdout + env_result.stderr)[-7000:])
     engines = json.loads(env_result.stdout.strip())
     assert engines["rapidocr"] is True, engines
 
