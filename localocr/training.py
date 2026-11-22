@@ -115,6 +115,43 @@ class TrainingManager:
         self._record: dict | None = None
         self._log_handle = None
 
+    def _persist(self) -> None:
+        """Atomic metadata update: only progress, run config and output path."""
+        if self._record is None:
+            return
+        output = Path(self._record["output_dir"])
+        path = output / "status.json"
+        tmp = output / "status.json.tmp"
+        tmp.write_text(json.dumps(self._record, ensure_ascii=False, indent=2),
+                       encoding="utf-8")
+        tmp.replace(path)
+
+    def history(self, limit: int = 20) -> list[dict]:
+        """Return recent local runs; stale running records are reported as unknown."""
+        limit = min(50, max(1, limit))
+        entries = []
+        root = self.root / "runs"
+        if not root.is_dir():
+            return entries
+        for folder in root.iterdir():
+            if not folder.is_dir() or not re.fullmatch("[a-f0-9]{32}", folder.name):
+                continue
+            path = folder / "status.json"
+            if not path.is_file():
+                continue
+            try:
+                item = json.loads(path.read_text(encoding="utf-8"))
+                if item.get("id") != folder.name:
+                    continue
+                if self._record is None or self._record.get("id") != folder.name:
+                    if item.get("status") in ("running", "cancel_requested"):
+                        item["status"] = "unknown_after_restart"
+                entries.append(item)
+            except (ValueError, OSError):
+                continue
+        entries.sort(key=lambda x: x.get("started_at", ""), reverse=True)
+        return entries[:limit]
+
     def start(self, plan: dict) -> dict:
         with self._lock:
             if self._process is not None and self._process.poll() is None:
@@ -144,6 +181,7 @@ class TrainingManager:
                 "train_count": plan["train_count"], "val_count": plan["val_count"],
                 "test_count": plan["test_count"], "epochs": plan["epochs"],
             }
+            self._persist()
             return self.status()
 
     def status(self) -> dict:
@@ -158,6 +196,8 @@ class TrainingManager:
                         else ("completed" if code == 0 else "failed")
                     )
                     self._record["exit_code"] = code
+                    self._record["finished_at"] = datetime.now(timezone.utc).isoformat()
+                    self._persist()
                     self._close_log()
             result = dict(self._record)
             log = Path(result["output_dir"]) / "train.log"
@@ -182,6 +222,7 @@ class TrainingManager:
             else:
                 self._process.terminate()
             self._record["status"] = "cancel_requested"
+            self._persist()
             return self.status()
 
     def _close_log(self):
