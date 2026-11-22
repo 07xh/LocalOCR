@@ -310,70 +310,72 @@
     await showRegisteredModels();
     toast('检查点已登记，但尚未完成推理兼容性验收，因此不会自动启用');
   }));
+  const qualityMath = globalThis.LocalOCRQualityReport;
+  if (!qualityMath) throw new Error('本地评估组件未加载，请检查工作台文件完整性');
   let allEvaluationRunning = false;
+  let manualEvaluationRunning = false;
   let stopAllEvaluation = false;
+  let lastQualityReport = null;
   const MAX_BATCH_EVALUATION_IMAGES = 150;
-  const lengthBuckets = ['1-4', '5-12', '13+'];
-  const makeAggregate = () => ({
-    samples: 0, regions: 0, exact: 0, errors: 0, chars: 0,
-    elapsed: 0, blanks: 0, engines: new Set(), examples: [],
-    groups: Object.fromEntries(lengthBuckets.map(k => [k,
-      {regions: 0, exact_matches: 0, edit_errors: 0, reference_characters: 0}]))
-  });
-  function includePage(aggregate, page) {
-    aggregate.samples += page.evaluated_samples;
-    aggregate.regions += page.evaluated_regions;
-    aggregate.exact += page.exact_matches;
-    aggregate.errors += page.edit_errors;
-    aggregate.chars += page.reference_characters;
-    aggregate.elapsed += page.inference_ms_total;
-    aggregate.blanks += page.quality.empty_predictions;
-    for (const name of page.actual_engines) aggregate.engines.add(name);
-    for (const key of lengthBuckets) {
-      const source = page.quality.by_reference_length[key];
-      const target = aggregate.groups[key];
-      target.regions += source.regions;
-      target.exact_matches += source.exact_matches;
-      target.edit_errors += source.edit_errors;
-      target.reference_characters += source.reference_characters;
-    }
-    for (const item of page.error_examples) {
-      if (aggregate.examples.length >= 10) break;
-      aggregate.examples.push(item);
-    }
+  const exportQualityButton = el('eval-local-export');
+  function clearQualityReport() {
+    lastQualityReport = null;
+    exportQualityButton.disabled = true;
   }
-  function aggregateDisplay(aggregate, completed, available, info) {
-    const pct = (value, total) => total ? (100 * value / total).toFixed(2) + '%' : '—';
+  function qualityText(report) {
+    const e = report.evaluation, m = report.metrics;
+    const pct = value => value === null ? '—' : (value * 100).toFixed(2) + '%';
     const lines = [
-      '本地 OCR 测试集汇总 · ' + info,
-      '已评估：' + aggregate.samples + ' / ' + (available ?? '?') + ' 张图片；' +
-        aggregate.regions + ' 个文字区域',
-      '引擎：' + [...aggregate.engines].join(', '),
-      '区域完全匹配：' + aggregate.exact + '/' + aggregate.regions +
-        '（' + pct(aggregate.exact, aggregate.regions) + '）',
-      '字符错误率 CER：' + pct(aggregate.errors, aggregate.chars) +
-        '（' + aggregate.errors + ' 编辑错误 / ' + aggregate.chars + ' 个参考字符）',
-      '未识别文字的区域：' + aggregate.blanks,
-      '平均推理耗时：' + (aggregate.regions
-        ? (aggregate.elapsed / aggregate.regions).toFixed(2) + ' ms/区域' : '—'),
+      '本地 OCR 测试集汇总 · ' + (e.complete ? '已完成' : '部分结果（' + e.status + '）'),
+      '已评估：' + e.evaluated_samples + '/' + (e.total_test_samples ?? '?') +
+        ' 张图片；' + e.evaluated_regions + ' 个文字区域',
+      '引擎：' + report.actual_engines.join(', '),
+      '区域完全匹配：' + m.exact_matches + '/' + e.evaluated_regions +
+        '（' + pct(m.exact_match_rate) + '）',
+      '字符错误率 CER：' + pct(m.cer) +
+        '（' + m.edit_errors + ' 编辑错误 / ' + m.reference_characters + ' 参考字符）',
+      '未识别出文字的区域：' + m.empty_predictions,
+      '单区域平均推理耗时：' + (m.inference_ms_mean ?? '—') + ' ms',
       '按参考文字长度分析：'
     ];
-    for (const name of lengthBuckets) {
-      const group = aggregate.groups[name];
-      lines.push('  ' + name + ' 字符：' + group.regions + ' 区域，完全匹配 ' +
-        pct(group.exact_matches, group.regions) + '，CER ' +
-        pct(group.edit_errors, group.reference_characters));
+    for (const name of qualityMath.LENGTH_BUCKETS) {
+      const g = m.by_reference_length[name];
+      lines.push('  ' + name + ' 字符：' + g.regions + ' 区域，完全匹配 ' +
+        pct(g.exact_match_rate) + '，CER ' + pct(g.cer));
     }
-    lines.push(completed ? '所有当前测试集样本已评估。'
-      : '注意：未覆盖全部测试集，当前准确率仅代表已评估部分。');
-    lines.push('错误样本索引（不包含原始文字）：');
-    lines.push(JSON.stringify(aggregate.examples, null, 2));
+    if (!e.complete) lines.push('注意：尚未覆盖整个测试集，不能将本报告当作全量准确率。');
+    lines.push('测试集修订指纹：' + (e.dataset_fingerprint || '无'));
+    lines.push('最多 10 项错误区域索引（不包含原始文字）：');
+    lines.push(JSON.stringify(report.error_examples, null, 2));
     return lines.join('\n');
   }
+  function saveQualityReport() {
+    if (!lastQualityReport || allEvaluationRunning || manualEvaluationRunning) {
+      toast('请先完成或停止批量评测后再导出', true);
+      return;
+    }
+    const payload = JSON.stringify(lastQualityReport, null, 2) + '\n';
+    const blob = new Blob([payload], {type: 'application/json;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'localocr-ocr-quality-' +
+        new Date().toISOString().slice(0, 10) + '.json';
+      document.body.append(link);
+      link.click();
+      link.remove();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+    toast('已导出本地 OCR 指标 JSON，不包含图片及原始识别文本');
+  }
+  exportQualityButton.addEventListener('click', saveQualityReport);
   async function runAggregateEvaluation() {
-    if (allEvaluationRunning) return;
+    if (allEvaluationRunning || manualEvaluationRunning) return;
     allEvaluationRunning = true;
     stopAllEvaluation = false;
+    clearQualityReport();
     const select = el('eval-local-engine');
     const first = el('eval-local-run');
     const next = el('eval-local-next');
@@ -386,24 +388,22 @@
     next.disabled = true;
     all.disabled = true;
     stop.disabled = false;
-    const accumulator = makeAggregate();
-    let offset = 0;
-    let available = null;
-    let datasetFingerprint = null;
-    let completed = false;
+    const aggregate = qualityMath.createAccumulator();
+    let status = 'failed';
     try {
-      while (!stopAllEvaluation && accumulator.samples < MAX_BATCH_EVALUATION_IMAGES) {
-        let limit = Math.min(5, MAX_BATCH_EVALUATION_IMAGES - accumulator.samples);
-        let page;
-        while (true) {
+      while (!stopAllEvaluation && aggregate.samples < MAX_BATCH_EVALUATION_IMAGES) {
+        const offset = aggregate.nextOffset;
+        let limit = Math.min(5, MAX_BATCH_EVALUATION_IMAGES - aggregate.samples);
+        let page = null;
+        while (!stopAllEvaluation) {
           try {
             page = await request('/v1/evaluation/reviewed-test', {
               method: 'POST', body: JSON.stringify({engine: engineName, limit, offset})
             });
             break;
           } catch (error) {
-            // A few samples contain >8 text boxes; retry with a smaller page.
-            // A single image with >40 boxes remains a hard safety error.
+            // Use a single image when the selected page has >40 regions.
+            // An individual image with >40 regions remains a hard error.
             if (limit > 1 && String(error.message).includes('1..40 annotated regions')) {
               limit = 1;
             } else {
@@ -411,29 +411,34 @@
             }
           }
         }
-        if (available === null) {
-          available = page.available_test_samples;
-          datasetFingerprint = page.dataset_fingerprint;
+        if (!page) break;
+        qualityMath.includePage(aggregate, page);
+        const complete = aggregate.samples === aggregate.available;
+        el('aux-output').textContent = qualityText(
+          qualityMath.finalize(aggregate, {engine: engineName, reason: complete ? 'complete' : 'in_progress'}));
+        if (complete) {
+          status = 'complete';
+          break;
         }
-        if (datasetFingerprint !== page.dataset_fingerprint ||
-            available !== page.available_test_samples || page.offset !== offset ||
-            page.next_offset <= offset) {
-          throw new Error('测试集数量或分页已变化，请重新开始评估，避免统计重复或漏项');
-        }
-        includePage(accumulator, page);
-        offset = page.next_offset;
-        completed = !page.has_more;
-        el('aux-output').textContent = aggregateDisplay(
-          accumulator, completed, available, completed ? '全部完成' : '正在逐批汇总');
-        if (completed) break;
       }
-      const info = completed ? '全部完成' : stopAllEvaluation ? '用户停止' : '达到单次 150 张图片上限';
-      el('aux-output').textContent = aggregateDisplay(accumulator, completed, available, info);
-      toast(completed ? '测试集已完整评估，使用总编辑错误数计算 CER'
-        : '评估已停止或达到上限，结果为部分测试集');
+      if (status !== 'complete') {
+        status = stopAllEvaluation ? 'cancelled' : 'limit_reached';
+      }
+      if (aggregate.samples) {
+        lastQualityReport = qualityMath.finalize(aggregate, {engine: engineName, reason: status});
+        exportQualityButton.disabled = false;
+        el('aux-output').textContent = qualityText(lastQualityReport);
+      }
+      toast(status === 'complete' ? '整个测试集的评测结果已汇总，可导出 JSON'
+        : '评测已停止或达到上限；结果标记为部分报告');
     } catch (error) {
-      el('aux-output').textContent = aggregateDisplay(
-        accumulator, false, available, '未完成（中途出错）');
+      if (aggregate.samples) {
+        const reason = String(error.message).includes('dataset changed') ||
+          String(error.message).includes('数据集') ? 'invalidated' : 'failed';
+        lastQualityReport = qualityMath.finalize(aggregate, {engine: engineName, reason});
+        exportQualityButton.disabled = false;
+        el('aux-output').textContent = qualityText(lastQualityReport);
+      }
       throw error;
     } finally {
       allEvaluationRunning = false;
@@ -448,17 +453,23 @@
   el('eval-local-stop').addEventListener('click', () => {
     stopAllEvaluation = true;
     el('eval-local-stop').disabled = true;
-    toast('已请求停止，当前单次识别结束后停止汇总');
+    toast('已请求停止；当前批次完成后将生成部分报告');
   });
 
   let evaluatedNextOffset = 0;
   async function runLocalBenchmark(nextPage = false) {
+    if (allEvaluationRunning || manualEvaluationRunning) return;
+    manualEvaluationRunning = true;
+    clearQualityReport();
     const offset = nextPage ? evaluatedNextOffset : 0;
     const select = el('eval-local-engine');
     const runButton = el('eval-local-run');
     const nextButton = el('eval-local-next');
+    const allButton = el('eval-local-all');
     runButton.disabled = true;
     nextButton.disabled = true;
+    allButton.disabled = true;
+    select.disabled = true;
     try {
       const report = await request('/v1/evaluation/reviewed-test', {
         method: 'POST',
@@ -482,9 +493,17 @@
       nextButton.disabled = !report.has_more;
       toast('本地 OCR 测试完成，结果未写入标注库');
     } finally {
+      manualEvaluationRunning = false;
       runButton.disabled = false;
+      allButton.disabled = false;
+      select.disabled = false;
     }
   }
+  el('eval-local-engine').addEventListener('change', () => {
+    evaluatedNextOffset = 0;
+    el('eval-local-next').disabled = true;
+    clearQualityReport();
+  });
   el('eval-local-run').addEventListener('click', () => attempt(() => runLocalBenchmark()));
   el('eval-local-next').addEventListener('click', () => attempt(() => runLocalBenchmark(true)));
   el('eval-run').addEventListener('click', () => attempt(async () => {
