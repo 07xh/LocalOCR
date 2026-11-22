@@ -12,6 +12,8 @@ from .dataset import DatasetStore, DatasetError, MissingSample, VersionConflict
 from .engine import EngineUnavailable, OCRService
 from .image_io import InvalidImage, decode_base64
 from .paddle_export import export_detection_zip
+from .rec_export import export_recognition_zip
+from .training import TrainingError, TrainingManager, build_plan
 from .settings import api_key as configured_key
 
 
@@ -42,6 +44,15 @@ class SamplePatch(BaseModel):
     source: str | None = Field(default=None, max_length=160)
 
 
+class TrainingRequest(BaseModel):
+    paddle_repo: str = Field(min_length=1, max_length=1024)
+    dataset_dir: str = Field(min_length=1, max_length=1024)
+    pretrained_model: str = Field(min_length=1, max_length=1024)
+    epochs: int = Field(default=10, ge=1, le=50)
+    batch_size: int = Field(default=4, ge=1, le=32)
+    use_gpu: bool = False
+
+
 def create_app(service: OCRService | None = None, token: str | None = None,
                store: DatasetStore | None = None) -> FastAPI:
     engine = service or OCRService()
@@ -51,6 +62,14 @@ def create_app(service: OCRService | None = None, token: str | None = None,
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
     # Store initialization is lazy: CLI-only users shouldn't create a database.
     dataset = store
+    training_manager: TrainingManager | None = None
+
+    def get_training_manager() -> TrainingManager:
+        nonlocal training_manager
+        if training_manager is None:
+            training_manager = TrainingManager()
+        return training_manager
+
 
     def get_dataset() -> DatasetStore:
         nonlocal dataset
@@ -199,6 +218,50 @@ def create_app(service: OCRService | None = None, token: str | None = None,
             )
         except DatasetError as e:
             fail_dataset(e)
+
+    @app.get("/v1/datasets/export/paddle-rec", dependencies=[Depends(authorize)])
+    def export_paddle_rec():
+        """Human-reviewed, explicitly assigned quadrilateral text crops."""
+        try:
+            return Response(
+                content=export_recognition_zip(get_dataset()),
+                media_type="application/zip",
+                headers={"Content-Disposition": 'attachment; filename="localocr-paddle-rec.zip"'},
+            )
+        except DatasetError as e:
+            fail_dataset(e)
+
+    def training_plan(req: TrainingRequest):
+        try:
+            return build_plan(
+                req.paddle_repo, req.dataset_dir, req.pretrained_model,
+                epochs=req.epochs, batch_size=req.batch_size, use_gpu=req.use_gpu,
+            )
+        except (TrainingError, OSError) as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @app.post("/v1/training/plan", dependencies=[Depends(authorize)])
+    def plan_training(req: TrainingRequest):
+        return training_plan(req)
+
+    @app.post("/v1/training/start", dependencies=[Depends(authorize)])
+    def start_training(req: TrainingRequest):
+        plan = training_plan(req)
+        try:
+            return get_training_manager().start(plan)
+        except (TrainingError, OSError) as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+
+    @app.get("/v1/training/status", dependencies=[Depends(authorize)])
+    def training_status():
+        return get_training_manager().status()
+
+    @app.post("/v1/training/cancel", dependencies=[Depends(authorize)])
+    def cancel_training():
+        try:
+            return get_training_manager().cancel()
+        except (TrainingError, OSError) as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
 
     return app
 
