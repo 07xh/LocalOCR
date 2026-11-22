@@ -285,17 +285,30 @@
   el('train-history').addEventListener('click', () => attempt(async () => {
     showAux(await request('/v1/training/history'));
   }));
-  el('model-list').addEventListener('click', () => attempt(async () => {
-    showAux(await request('/v1/models'));
-  }));
+  async function showRegisteredModels() {
+    const records = (await request('/v1/models')).items || [];
+    const lines = ['本地训练检查点 · 状态清单（不是已经部署的 OCR 模型）'];
+    if (!records.length) lines.push('暂无已登记版本。');
+    for (const [index, entry] of records.entries()) {
+      lines.push((index + 1) + '. ' + entry.filename + ' · ' + entry.id +
+        '\n   训练任务：' + entry.run_id +
+        '\n   文件 SHA-256：' + entry.sha256 +
+        '\n   验收状态：' + entry.state +
+        '\n   可切换到正在使用的 OCR 引擎：否（尚未导出/验证兼容推理格式）');
+    }
+    el('model-output').textContent = lines.join('\n');
+  }
+  el('model-list').addEventListener('click', () => attempt(showRegisteredModels));
   el('model-register').addEventListener('click', () => attempt(async () => {
     if (!confirm('只登记本地模型文件及其哈希；不会切换正在使用的 OCR 模型。继续？')) return;
-    showAux(await request('/v1/models/register', {
+    await request('/v1/models/register', {
       method: 'POST', body: JSON.stringify({
         run_id: el('model-run').value.trim(),
         filename: el('model-file').value.trim()
       })
-    }));
+    });
+    await showRegisteredModels();
+    toast('检查点已登记，但尚未完成推理兼容性验收，因此不会自动启用');
   }));
   let allEvaluationRunning = false;
   let stopAllEvaluation = false;
