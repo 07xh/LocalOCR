@@ -214,7 +214,7 @@ class TrainingManager:
             # PaddleOCR outputs epoch: [N/TOTAL] in its normal training log.
             # Parsed progress is informative, not a guarantee of final quality.
             tail = result.get("log_tail", "")
-            matches = re.findall(r"epoch:\\s*\\[(\\d+)\\s*/\\s*(\\d+)\\]", tail)
+            matches = re.findall(r"epoch:\s*\[(\d+)\s*/\s*(\d+)\]", tail)
             if matches:
                 current, total = map(int, matches[-1])
                 if total > 0:
