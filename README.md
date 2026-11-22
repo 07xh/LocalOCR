@@ -6,7 +6,7 @@
 
 - **引擎**：Tesseract OCR（已进行真实图片识别），RapidOCR 3.x/ONNX（GitHub Actions Linux/Windows 真模型推理通过；Windows 图形化实机仍待验收）。
 - **API**：只绑定本机 `127.0.0.1:18765` 的 FastAPI 服务，需要持久化随机 API Key；Base64 PNG/JPEG/WEBP/BMP/TIFF 输入。
-- **数据集**：本地 SQLite + 原图转 PNG，重复图片去重、人工审核、版本冲突保护、train/val/test 数据集分组、原 JSONL ZIP 导出，并新增 PPOCRLabel/PaddleOCR **文字检测标注** ZIP（仅已审核数据，不改变原 API）。
+- **数据集**：本地 SQLite + 原图转 PNG，重复图片去重、人工审核、版本冲突保护、train/val/test 数据集分组、原 JSONL ZIP 导出，并新增 PaddleOCR **文字检测**和**文字识别**训练数据 ZIP（仅人工审核数据，不改变原 API）。
 - **标注界面**：内置本地页面，支持导入、预览、鼠标框选、OCR 建议、手动纠错、保存、审核。
 - **测试**：原有 25 项 Python 单元/API 测试与真实 Tesseract OCR 此前通过；新增 PaddleOCR 格式/API 回归测试和 Linux/Windows RapidOCR **真实模型** CI 验收流程，最新 CI 已通过：单元/API 回归 29 passed、3 skipped，Linux 真模型 1 passed、1 skipped，Windows 真模型 2 passed。Windows 浏览器交互与实际部署仍需验收。
 
@@ -63,7 +63,19 @@ with urlopen(req, timeout=90) as response:
     print(json.load(response)['text'])
 ```
 
-网页工作台的「PaddleOCR 检测集」按钮或 `GET /v1/datasets/export/paddle-det` 可获取已审核标注的标准检测格式 ZIP；训练/验证/测试划分需要用户在样本中明确设置，工具不会把未分配样本直接用于训练。
+网页工作台的「PaddleOCR 检测集」按钮或 `GET /v1/datasets/export/paddle-det` 可获取已审核标注的标准检测格式 ZIP；「PaddleOCR 识别集」或 `GET /v1/datasets/export/paddle-rec` 可获取按四点框矫正裁剪的文字识别训练集（`rec_gt_train.txt`、`rec_gt_val.txt`、`rec_gt_test.txt`）。训练/验证/测试划分需要用户在样本中明确设置，工具不会把未分配样本直接用于训练。
+
+### 本地 PaddleOCR 模型微调入口
+
+标注工作台底部新增「本地模型训练」折叠栏。操作步骤：
+
+1. 在标注界面校对文字，人工审核并将样本**明确分配**至训练集与验证集；测试集保持独立。
+2. 导出「PaddleOCR 识别集」ZIP，解压到本机数据目录。
+3. 另行安装与设备兼容的 PaddlePaddle，并从官方 [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) 获取可信源码及 **PP-OCRv5 mobile-rec** 预训练权重（.pdparams）。不要使用不明来源权重。
+4. 输入 PaddleOCR 源码目录、解压数据目录、权重路径；使用「检查配置」预检。预检检查至少 2 张训练文字裁剪、1 张验证文字裁剪、路径存在且无越界；不自动拿测试数据训练。
+5. 「启动训练」将运行本机 `tools/train.py`（不经过 Shell），可以刷新日志、取消任务。成功完成后会在任务输出目录发现 `.pdparams` 模型文件；**不会自动把训练结果替换掉 RapidOCR 正在使用的模型**。
+
+默认 CPU、10 轮、batch=4；小样本应先降低 batch size。模型训练执行效果依赖本机 PaddlePaddle、内存和配置，**仅有训练入口不意味着模型训练已经实机成功**。这不是云端训练服务，也不会向外发送标注图片。
 
 其他接口请查看 [`docs/API.md`](docs/API.md)。成功响应包含 `engine`, `text`, `lines`, `width`, `height`, `elapsed_ms`。OCR 的模型猜测**不会自动存为真值**，需要人工核对保存；只审核过的样本会进入默认 ZIP 导出。
 
@@ -87,6 +99,6 @@ LocalOCR/
 
 ## 实际限制与后续
 
-现阶段是**可运行的本地 OCR + 数据标注工作台源码**，**并非完整训练软件或已经发布的 EXE**。已添加 PaddleOCR 检测标注格式导出，已通过 Linux/Windows CI 的 RapidOCR 真实模型推理测试；尚未完成 Windows UI 实机验收、断网安装验收、文字识别（rec）训练集转换或模型微调。代码不包含任何第三方网站验证码在线验证/自动注册操作。
+现阶段是**可运行的本地 OCR + 数据标注工作台源码**，**并非完整训练软件或已经发布的 EXE**。已添加 PaddleOCR 检测标注格式导出，已通过 Linux/Windows CI 的 RapidOCR 真实模型推理测试；尚未完成 Windows UI 实机验收、断网安装验收和在真实数据集上的实际模型微调验收。代码不包含任何第三方网站验证码在线验证/自动注册操作。
 
 测试：`python -m pip install -e '.[dev,tesseract]'` 后运行 `python -m pytest -q`。参考项目及许可证核查入口见 [`docs/SOURCES.md`](docs/SOURCES.md)。
