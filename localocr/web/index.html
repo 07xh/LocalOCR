@@ -53,6 +53,7 @@
       <summary>本地模型训练 · PaddleOCR 识别模型</summary>
       <p class="fineprint">先导出上方「PaddleOCR 识别集」并解压。训练仅使用本机的 PaddleOCR 源码、预训练权重和已审核数据，不自动下载。断点续训需已有任务的 .pdparams、.pdopt、.states 文件且训练集配置未改变；目标总轮次应高于已完成任务。</p>
       <div class="training-fields">
+        <label for="train-python">训练环境 Python（便携版必填）</label><input id="train-python" placeholder="例如 D:\\PaddleEnv\\Scripts\\python.exe" autocomplete="off">
         <label for="train-repo">本机 PaddleOCR 源码目录</label><input id="train-repo" placeholder="例如 D:\\PaddleOCR" autocomplete="off">
         <label for="train-data">已解压的识别数据集目录</label><input id="train-data" placeholder="包含 rec_gt_train.txt / rec_gt_val.txt" autocomplete="off">
         <label for="train-weight">本机预训练模型 .pdparams 文件</label><input id="train-weight" placeholder="例如 D:\\models\\PP-OCRv5_mobile_rec_pretrained.pdparams" autocomplete="off">
