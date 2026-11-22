@@ -55,7 +55,9 @@ def main() -> int:
     try:
         for attempt in range(45):
             if proc.poll() is not None:
-                raise AssertionError("Frozen server exited with " + str(proc.returncode))
+                error_output = proc.stderr.read().decode("utf-8", "replace") if proc.stderr else ""
+                raise AssertionError("Frozen server exited with " + str(proc.returncode) +
+                                     "\\n" + error_output[-6000:])
             try:
                 with urlopen("http://127.0.0.1:18769/health", timeout=2) as response:
                     assert json.load(response)["status"] == "ok"
