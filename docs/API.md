@@ -34,6 +34,10 @@
 | `POST /v1/training/start` | 本地启动单个 PaddleOCR 识别微调进程 | 同上；需明确由用户触发 |
 | `GET /v1/training/status` | 查询状态、退出码、最近日志及已生成权重文件 | 无 |
 | `POST /v1/training/cancel` | 终止当前本地训练任务 | 无 |
+| `GET /v1/training/history` | 查看已保存的训练任务记录，重启后无法确认状态的任务标为 unknown | `limit` 可选 |
+| `POST /v1/evaluation/recognition` | 在明确保留的测试集计算 CER 与整行精确匹配率 | `dataset_dir`, `predictions_path` 本地绝对路径 |
+| `GET /v1/models` | 列出已登记的本地模型元数据和 SHA-256 | 无 |
+| `POST /v1/models/register` | 仅登记已完成训练任务的本地 `.pdparams` 权重 | `run_id`, `filename` |
 
 
 标注 `lines` 的每一项包含 `text`（1–1024 字符）和 `box`（4 个 `[x,y]` 原图坐标）。`split` 取 `train`、`val`、`test`、`unassigned`。编辑时必须提供读取到的 `revision`，过期时返回 `409`，防止覆盖其他窗口修改。
@@ -41,6 +45,16 @@
 导出 ZIP 包含 `images/*.png`、`labels.jsonl` 和 `manifest.json`。这是 **LocalOCR 自有通用 JSONL**，并非直接可被 PaddleOCR 训练脚本读取的完整格式；正式训练适配器还没有实现。单次导出最多 150 张图片、输入图片总大小最多 128 MiB。
 
 **PaddleOCR 检测标注导出**：新接口返回 `images/*.png`、`Label.txt`、`det/train.txt`、`det/val.txt`、`det/test.txt` 和 `manifest.json`。每条标签遵循 `相对图片路径\\t[{"transcription": "文本", "points": [[x,y], ...], "difficult": false}]` 的标准检测格式；ZIP 解压目录可作为 PaddleOCR 检测数据集 `data_dir`，按需指定检测训练/验证标签路径。未分配 split 的已审核样本保留在 `Label.txt`，不会被擅自放入训练集。未审核样本不会进入新接口的导出结果。此格式只包含**文字检测标注**。另有 `paddle-rec` 将审核过、分配过数据集的文字框透视矫正成独立 PNG，并以 PaddleOCR 的 `文件路径<TAB>文字` 格式生成 `rec_gt_{train,val,test}.txt`。训练 API 只负责本地进程，不自动下载、自动标注或自动部署模型；不保证本机已有 PaddlePaddle。
+
+## 独立识别评估协议
+
+手动或使用可信本地工具生成 `predictions.jsonl`，每一行一个 JSON 对象，例如：
+
+```jsonl
+{"image":"rec/test/1234_0000.png","text":"识别出来的文字"}
+```
+
+使用 `POST /v1/evaluation/recognition` 提交本地解压数据集路径与 predictions.jsonl 文件路径。API 只读取 `rec_gt_test.txt`，拒绝训练集或验证集图片、不允许重复预测，将缺失预测按错误计入结果。报告包含样本数、遗漏数、字符错误率（CER）、整行精确匹配率和输入文件 SHA-256。**这是离线计分器，不运行训练模型，也不会自动证明模型性能。** 所有训练任务及模型路径均留在本机，登记不意味着已通过权重加载或推理验证。
 
 ## 错误码
 

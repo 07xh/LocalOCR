@@ -277,5 +277,29 @@
   el('train-status').addEventListener('click',()=>attempt(trainingStatus));
   el('train-cancel').addEventListener('click',()=>attempt(trainingCancel));
 
+  function showAux(value) { el('aux-output').textContent = JSON.stringify(value, null, 2); }
+  el('train-history').addEventListener('click', () => attempt(async () => {
+    showAux(await request('/v1/training/history'));
+  }));
+  el('model-list').addEventListener('click', () => attempt(async () => {
+    showAux(await request('/v1/models'));
+  }));
+  el('model-register').addEventListener('click', () => attempt(async () => {
+    if (!confirm('只登记本地模型文件及其哈希；不会切换正在使用的 OCR 模型。继续？')) return;
+    showAux(await request('/v1/models/register', {
+      method: 'POST', body: JSON.stringify({
+        run_id: el('model-run').value.trim(),
+        filename: el('model-file').value.trim()
+      })
+    }));
+  }));
+  el('eval-run').addEventListener('click', () => attempt(async () => {
+    showAux(await request('/v1/evaluation/recognition', {
+      method: 'POST', body: JSON.stringify({
+        dataset_dir: el('eval-data').value.trim(),
+        predictions_path: el('eval-predictions').value.trim()
+      })
+    }));
+  }));
   showButtons();if(key)attempt(connect);
 })();

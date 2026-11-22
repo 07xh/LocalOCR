@@ -90,19 +90,23 @@ def test_training_manager_subprocess_start_status_and_finish(tmp_path, monkeypat
     manager = TrainingManager(tmp_path / "jobs")
     status = manager.start(plan)
     assert status["status"] == "running"
+    assert json.loads((Path(status["output_dir"]) / "status.json").read_text())["status"] == "running"
     assert captured["kwargs"]["shell"] is False
     assert captured["kwargs"]["stdin"] is not None
     assert Path(status["output_dir"]).is_dir()
     with pytest.raises(TrainingError, match="already running"):
         manager.start(plan)
-    (Path(status["output_dir"]) / "train.log").write_text("epoch 1\n", encoding="utf-8")
+    (Path(status["output_dir"]) / "train.log").write_text("epoch: [2/10], global_step: 2\n", encoding="utf-8")
+    live = manager.status()
+    assert live["epoch_current"] == 2 and live["epoch_percent"] == 20.0
     (Path(status["output_dir"]) / "best_accuracy.pdparams").write_bytes(b"model fixture")
     process.code = 0
     finished = manager.status()
     assert finished["status"] == "completed"
     assert finished["exit_code"] == 0
     assert finished["model_files"] == ["best_accuracy.pdparams"]
-    assert "epoch 1" in finished["log_tail"]
+    assert "epoch: [2/10]" in finished["log_tail"]
+    assert json.loads((Path(status["output_dir"]) / "status.json").read_text())["status"] == "completed"
 
 
 def test_cancel_running_training_and_terminal_status(tmp_path, monkeypatch):
