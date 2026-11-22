@@ -10,3 +10,7 @@
 .training-actions{display:flex;flex-wrap:wrap;gap:8px;margin:15px 0}
 .training-output{background:#f5f8f6;padding:14px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:250px;overflow:auto;font-size:11px;line-height:1.5;color:#2d4b3e}
 @media(max-width:700px){.training-fields{grid-template-columns:1fr;gap:6px}.training-fields label{margin-top:7px}}
+
+.aux-tools{border-top:1px solid #e1e8e3;margin-top:16px;padding-top:14px}
+.aux-tools h3{font-size:13px;font-weight:650;margin:14px 0 8px}
+.aux-tools .fineprint{margin:0 0 12px}
