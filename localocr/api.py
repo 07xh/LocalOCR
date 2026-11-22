@@ -51,6 +51,7 @@ class TrainingRequest(BaseModel):
     paddle_repo: str = Field(min_length=1, max_length=1024)
     dataset_dir: str = Field(min_length=1, max_length=1024)
     pretrained_model: str = Field(min_length=1, max_length=1024)
+    training_python: str | None = Field(default=None, min_length=1, max_length=1024)
     epochs: int = Field(default=10, ge=1, le=50)
     batch_size: int = Field(default=4, ge=1, le=32)
     use_gpu: bool = False
@@ -267,6 +268,7 @@ def create_app(service: OCRService | None = None, token: str | None = None,
                 epochs=req.epochs, batch_size=req.batch_size, use_gpu=req.use_gpu,
                 resume_run_id=req.resume_run_id,
                 resume_checkpoint=req.resume_checkpoint,
+                training_python=req.training_python,
             )
         except (TrainingError, OSError) as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
