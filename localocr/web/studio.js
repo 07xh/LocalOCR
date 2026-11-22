@@ -376,6 +376,7 @@
     const accumulator = makeAggregate();
     let offset = 0;
     let available = null;
+    let datasetFingerprint = null;
     let completed = false;
     try {
       while (!stopAllEvaluation && accumulator.samples < MAX_BATCH_EVALUATION_IMAGES) {
@@ -397,8 +398,12 @@
             }
           }
         }
-        if (available === null) available = page.available_test_samples;
-        if (available !== page.available_test_samples || page.offset !== offset ||
+        if (available === null) {
+          available = page.available_test_samples;
+          datasetFingerprint = page.dataset_fingerprint;
+        }
+        if (datasetFingerprint !== page.dataset_fingerprint ||
+            available !== page.available_test_samples || page.offset !== offset ||
             page.next_offset <= offset) {
           throw new Error('测试集数量或分页已变化，请重新开始评估，避免统计重复或漏项');
         }
