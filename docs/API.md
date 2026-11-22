@@ -27,11 +27,14 @@
 | `PATCH /v1/samples/{id}` | 调整分组/来源/审核状态 | `expected_revision`, `status`, `split`, `source` |
 | `DELETE /v1/samples/{id}?expected_revision=N` | 删除图片和标注 | 修订号 |
 | `GET /v1/datasets/stats` | 总数、审核和分组统计 | 无 |
-| `GET /v1/datasets/export?reviewed_only=true` | ZIP 导出 | 默认仅人工审核样本 |
+| `GET /v1/datasets/export?reviewed_only=true` | 原有 JSONL ZIP 导出 | 默认仅人工审核样本 |
+| `GET /v1/datasets/export/paddle-det` | PPOCRLabel/PaddleOCR 检测标注 ZIP | 仅人工审核，按已有 split 输出 |
 
 标注 `lines` 的每一项包含 `text`（1–1024 字符）和 `box`（4 个 `[x,y]` 原图坐标）。`split` 取 `train`、`val`、`test`、`unassigned`。编辑时必须提供读取到的 `revision`，过期时返回 `409`，防止覆盖其他窗口修改。
 
 导出 ZIP 包含 `images/*.png`、`labels.jsonl` 和 `manifest.json`。这是 **LocalOCR 自有通用 JSONL**，并非直接可被 PaddleOCR 训练脚本读取的完整格式；正式训练适配器还没有实现。单次导出最多 150 张图片、输入图片总大小最多 128 MiB。
+
+**PaddleOCR 检测标注导出**：新接口返回 `images/*.png`、`Label.txt`、`det/train.txt`、`det/val.txt`、`det/test.txt` 和 `manifest.json`。每条标签遵循 `相对图片路径\\t[{"transcription": "文本", "points": [[x,y], ...], "difficult": false}]` 的标准检测格式；ZIP 解压目录可作为 PaddleOCR 检测数据集 `data_dir`，按需指定检测训练/验证标签路径。未分配 split 的已审核样本保留在 `Label.txt`，不会被擅自放入训练集。未审核样本不会进入新接口的导出结果。此格式只包含**文字检测标注**，不包含文字识别裁剪集、权重、训练任务或模型微调功能。
 
 ## 错误码
 

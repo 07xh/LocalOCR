@@ -207,6 +207,16 @@
   el('review').addEventListener('click',()=>attempt(()=>metadata('reviewed')));
   el('suggest').addEventListener('click',()=>attempt(suggest));
   el('delete').addEventListener('click',()=>attempt(remove));
+  async function exportPaddle() {
+    const zip = await request('/v1/datasets/export/paddle-det');
+    const url = URL.createObjectURL(zip);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'localocr-paddle-det.zip';
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast('已导出检测标注；尚未执行模型训练');
+  }
   el('export').addEventListener('click',()=>attempt(exportZip));
+  el('export-paddle').addEventListener('click',()=>attempt(exportPaddle));
   showButtons();if(key)attempt(connect);
 })();

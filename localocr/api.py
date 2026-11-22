@@ -11,6 +11,7 @@ from . import __version__
 from .dataset import DatasetStore, DatasetError, MissingSample, VersionConflict
 from .engine import EngineUnavailable, OCRService
 from .image_io import InvalidImage, decode_base64
+from .paddle_export import export_detection_zip
 from .settings import api_key as configured_key
 
 
@@ -184,6 +185,18 @@ def create_app(service: OCRService | None = None, token: str | None = None,
             blob = get_dataset().export_zip(reviewed_only)
             return Response(content=blob, media_type="application/zip",
                             headers={"Content-Disposition": 'attachment; filename="localocr-dataset.zip"'})
+        except DatasetError as e:
+            fail_dataset(e)
+
+    @app.get("/v1/datasets/export/paddle-det", dependencies=[Depends(authorize)])
+    def export_paddle_det():
+        """Export only human-reviewed PaddleOCR text-detection labels."""
+        try:
+            blob = export_detection_zip(get_dataset())
+            return Response(
+                content=blob, media_type="application/zip",
+                headers={"Content-Disposition": 'attachment; filename="localocr-paddle-det.zip"'},
+            )
         except DatasetError as e:
             fail_dataset(e)
 

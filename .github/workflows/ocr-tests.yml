@@ -1,0 +1,46 @@
+name: LocalOCR regression and real RapidOCR inference
+
+on:
+  pull_request:
+    paths:
+      - 'localocr/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '.github/workflows/ocr-tests.yml'
+  push:
+    branches: [main, feat/rapidocr-paddle-export-20261122]
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: API and dataset regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e '.[dev,tesseract]'
+      - run: python -m pytest -q
+      - name: Check studio JavaScript syntax
+        run: node --check localocr/web/studio.js
+
+  rapidocr-real:
+    name: Real RapidOCR model on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e '.[dev,rapid]'
+      - name: Verify actual OCR model inference, not mocked output
+        env:
+          LOCALOCR_REAL_RAPID: '1'
+        run: python -m pytest -q -s tests/test_rapidocr_integration.py
