@@ -14,6 +14,8 @@ from .image_io import InvalidImage, decode_base64
 from .paddle_export import export_detection_zip
 from .rec_export import export_recognition_zip
 from .training import TrainingError, TrainingManager, build_plan
+from .evaluation import evaluate_recognition
+from .models import ModelRegistry
 from .settings import api_key as configured_key
 
 
@@ -53,6 +55,16 @@ class TrainingRequest(BaseModel):
     use_gpu: bool = False
 
 
+class RecognitionEvaluationRequest(BaseModel):
+    dataset_dir: str = Field(min_length=1, max_length=1024)
+    predictions_path: str = Field(min_length=1, max_length=1024)
+
+
+class CheckpointRegistrationRequest(BaseModel):
+    run_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    filename: str = Field(min_length=1, max_length=128)
+
+
 def create_app(service: OCRService | None = None, token: str | None = None,
                store: DatasetStore | None = None) -> FastAPI:
     engine = service or OCRService()
@@ -63,6 +75,14 @@ def create_app(service: OCRService | None = None, token: str | None = None,
     # Store initialization is lazy: CLI-only users shouldn't create a database.
     dataset = store
     training_manager: TrainingManager | None = None
+    model_registry: ModelRegistry | None = None
+
+    def get_model_registry() -> ModelRegistry:
+        nonlocal model_registry
+        if model_registry is None:
+            model_registry = ModelRegistry()
+        return model_registry
+
 
     def get_training_manager() -> TrainingManager:
         nonlocal training_manager
@@ -262,6 +282,31 @@ def create_app(service: OCRService | None = None, token: str | None = None,
             return get_training_manager().cancel()
         except (TrainingError, OSError) as e:
             raise HTTPException(status_code=409, detail=str(e)) from e
+
+    @app.get("/v1/training/history", dependencies=[Depends(authorize)])
+    def training_history(limit: int = 20):
+        return {"items": get_training_manager().history(limit)}
+
+    @app.post("/v1/evaluation/recognition", dependencies=[Depends(authorize)])
+    def recognition_evaluation(req: RecognitionEvaluationRequest):
+        try:
+            return evaluate_recognition(req.dataset_dir, req.predictions_path)
+        except (TrainingError, OSError, UnicodeError) as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @app.get("/v1/models", dependencies=[Depends(authorize)])
+    def list_registered_models():
+        try:
+            return {"items": get_model_registry().list()}
+        except (TrainingError, OSError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @app.post("/v1/models/register", dependencies=[Depends(authorize)])
+    def register_checkpoint(req: CheckpointRegistrationRequest):
+        try:
+            return get_model_registry().register(req.run_id, req.filename)
+        except (TrainingError, OSError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
     return app
 
