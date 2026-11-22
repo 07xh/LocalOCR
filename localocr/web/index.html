@@ -51,7 +51,7 @@
     </div>
     <details class="training-panel">
       <summary>本地模型训练 · PaddleOCR 识别模型</summary>
-      <p class="fineprint">先导出上方「PaddleOCR 识别集」并解压。训练仅使用本机的 PaddleOCR 源码、预训练权重和已审核数据，不自动下载。正式训练可能消耗较多计算资源。</p>
+      <p class="fineprint">先导出上方「PaddleOCR 识别集」并解压。训练仅使用本机的 PaddleOCR 源码、预训练权重和已审核数据，不自动下载。断点续训需已有任务的 .pdparams、.pdopt、.states 文件且训练集配置未改变；目标总轮次应高于已完成任务。</p>
       <div class="training-fields">
         <label for="train-repo">本机 PaddleOCR 源码目录</label><input id="train-repo" placeholder="例如 D:\\PaddleOCR" autocomplete="off">
         <label for="train-data">已解压的识别数据集目录</label><input id="train-data" placeholder="包含 rec_gt_train.txt / rec_gt_val.txt" autocomplete="off">
@@ -59,6 +59,9 @@
         <label for="train-epochs">训练轮次（1–50）</label><input id="train-epochs" type="number" min="1" max="50" value="10">
         <label for="train-batch">单批样本数（1–32）</label><input id="train-batch" type="number" min="1" max="32" value="4">
         <label for="train-gpu">设备</label><select id="train-gpu"><option value="false">CPU（无 GPU 也能配置，训练可能很慢）</option><option value="true">GPU（需另行安装匹配的 PaddlePaddle）</option></select>
+        <label for="train-resume-id">恢复既有训练（可选）</label><input id="train-resume-id" autocomplete="off" maxlength="32" placeholder="先从训练历史复制 32 位任务 ID">
+        <label for="train-resume-checkpoint">使用检查点</label><select id="train-resume-checkpoint"><option value="latest">latest：保留最新轮次状态</option><option value="best_accuracy">best_accuracy：使用最佳验证检查点</option></select>
+
       </div>
       <div class="training-actions">
         <button type="button" id="train-plan" class="btn">检查配置</button>

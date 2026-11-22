@@ -30,7 +30,7 @@
 | `GET /v1/datasets/export?reviewed_only=true` | 原有 JSONL ZIP 导出 | 默认仅人工审核样本 |
 | `GET /v1/datasets/export/paddle-det` | PPOCRLabel/PaddleOCR 检测标注 ZIP | 仅人工审核，按已有 split 输出 |
 | `GET /v1/datasets/export/paddle-rec` | PaddleOCR 文字识别裁剪 ZIP | 仅已审核且明确分到 train/val/test 的样本 |
-| `POST /v1/training/plan` | 在本机验证 PaddleOCR 训练配置，返回固定命令 | `paddle_repo`、`dataset_dir`、`pretrained_model`、`epochs`、`batch_size`、`use_gpu` |
+| `POST /v1/training/plan` | 在本机验证 PaddleOCR 训练配置，返回固定命令 | `paddle_repo`、`dataset_dir`、`pretrained_model`、`epochs`、`batch_size`、`use_gpu`；可选 `resume_run_id`、`resume_checkpoint` |
 | `POST /v1/training/start` | 本地启动单个 PaddleOCR 识别微调进程 | 同上；需明确由用户触发 |
 | `GET /v1/training/status` | 查询状态、退出码、最近日志及已生成权重文件 | 无 |
 | `POST /v1/training/cancel` | 终止当前本地训练任务 | 无 |
@@ -45,6 +45,12 @@
 导出 ZIP 包含 `images/*.png`、`labels.jsonl` 和 `manifest.json`。这是 **LocalOCR 自有通用 JSONL**，并非直接可被 PaddleOCR 训练脚本读取的完整格式；正式训练适配器还没有实现。单次导出最多 150 张图片、输入图片总大小最多 128 MiB。
 
 **PaddleOCR 检测标注导出**：新接口返回 `images/*.png`、`Label.txt`、`det/train.txt`、`det/val.txt`、`det/test.txt` 和 `manifest.json`。每条标签遵循 `相对图片路径\\t[{"transcription": "文本", "points": [[x,y], ...], "difficult": false}]` 的标准检测格式；ZIP 解压目录可作为 PaddleOCR 检测数据集 `data_dir`，按需指定检测训练/验证标签路径。未分配 split 的已审核样本保留在 `Label.txt`，不会被擅自放入训练集。未审核样本不会进入新接口的导出结果。此格式只包含**文字检测标注**。另有 `paddle-rec` 将审核过、分配过数据集的文字框透视矫正成独立 PNG，并以 PaddleOCR 的 `文件路径<TAB>文字` 格式生成 `rec_gt_{train,val,test}.txt`。训练 API 只负责本地进程，不自动下载、自动标注或自动部署模型；不保证本机已有 PaddlePaddle。
+
+## 本地训练检查点恢复（准备功能）
+
+训练计划与启动 API 支持可选 `resume_run_id`（此前本机的 32 位任务 ID）和 `resume_checkpoint`（`latest` 或 `best_accuracy`）。只有存在 `.pdparams`、`.pdopt`、`.states` 三件文件、此前任务已结束，并且 PaddleOCR 源码目录、预训练权重、设备、批量大小与 **train/val 标签 SHA-256** 一致时才允许恢复。PaddleOCR 使用 `Global.checkpoints` 恢复权重、优化器和轮次；不会把单个权重文件当作可恢复任务。新轮次写入**新的任务目录**，不覆盖旧检查点。
+
+旧版本的训练记录若没有可靠保存训练配置，会被拒绝恢复；需要先执行一项带完整训练配置记录的新任务。这是为避免错误模型与数据混合。对于已完成的任务，目标训练总轮次必须大于此前设置的轮次。只通过 CI 模拟任务验证数据接口和恢复参数，**尚未实际跑过 PaddleOCR 的跨任务完整续训**。
 
 ## 独立识别评估协议
 
