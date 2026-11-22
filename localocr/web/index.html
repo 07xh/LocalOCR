@@ -30,7 +30,7 @@
         <div class="panel-header"><h2>图片样本</h2><label class="btn small" for="files">+ 导入</label><input id="files" type="file" multiple accept="image/png,image/jpeg,image/webp,image/bmp,image/tiff" hidden></div>
         <div class="import-hint">导入本地图片 → 框选区域 → 修正文字 → 审核</div>
         <div id="sample-list" class="sample-list" aria-live="polite"><p class="empty">连接后显示样本</p></div>
-        <div class="aside-bottom"><button id="refresh" class="btn ghost">刷新</button><button id="export" class="btn ghost" title="只导出已审核的样本">导出已审核 ZIP</button></div>
+        <div class="aside-bottom"><button id="refresh" class="btn ghost">刷新</button><button id="export" class="btn ghost" title="只导出已审核的样本">导出已审核 ZIP</button><button id="export-paddle" class="btn ghost" title="导出人工审核的 PaddleOCR 检测标注（不包含模型训练）">PaddleOCR 检测集</button></div>
       </aside>
       <section class="editor" aria-label="图片标注编辑器">
         <div class="editor-toolbar"><div><h2 id="image-title">选择图片开始标注</h2><span id="image-meta">可将 OCR 识别结果作为建议，人工检查后再保存</span></div><div class="tool-actions"><button id="suggest" class="btn" disabled>OCR 建议</button><button id="save" class="btn primary" disabled>保存标注</button></div></div>
