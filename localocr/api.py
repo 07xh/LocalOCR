@@ -15,6 +15,7 @@ from .paddle_export import export_detection_zip
 from .rec_export import export_recognition_zip
 from .training import TrainingError, TrainingManager, build_plan
 from .evaluation import evaluate_recognition
+from .live_evaluation import evaluate_reviewed_test
 from .models import ModelRegistry
 from .settings import api_key as configured_key
 
@@ -58,6 +59,12 @@ class TrainingRequest(BaseModel):
 class RecognitionEvaluationRequest(BaseModel):
     dataset_dir: str = Field(min_length=1, max_length=1024)
     predictions_path: str = Field(min_length=1, max_length=1024)
+
+
+class ReviewedTestEvaluationRequest(BaseModel):
+    engine: Literal["auto", "rapidocr", "tesseract"] = "auto"
+    limit: int = Field(default=5, ge=1, le=20)
+    offset: int = Field(default=0, ge=0)
 
 
 class CheckpointRegistrationRequest(BaseModel):
@@ -292,6 +299,17 @@ def create_app(service: OCRService | None = None, token: str | None = None,
         try:
             return evaluate_recognition(req.dataset_dir, req.predictions_path)
         except (TrainingError, OSError, UnicodeError) as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @app.post("/v1/evaluation/reviewed-test", dependencies=[Depends(authorize)])
+    def evaluate_current_ocr(req: ReviewedTestEvaluationRequest):
+        """Run local OCR on held-out reviewed image crops; never mutate labels."""
+        try:
+            return evaluate_reviewed_test(get_dataset(), engine, req.engine,
+                                          req.limit, req.offset)
+        except EngineUnavailable as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+        except (DatasetError, InvalidImage, OSError, ValueError) as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     @app.get("/v1/models", dependencies=[Depends(authorize)])
