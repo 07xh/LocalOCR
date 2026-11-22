@@ -151,6 +151,18 @@ def build_plan(
     }
 
 
+def _resume_candidates(folder: Path) -> list[str]:
+    """Report checkpoints that contain model, optimizer, and epoch state."""
+    return [
+        prefix for prefix in ("latest", "best_accuracy")
+        if all(
+            (p := folder / (prefix + suffix)).is_file()
+            and p.resolve().parent == folder.resolve()
+            for suffix in (".pdparams", ".pdopt", ".states")
+        )
+    ]
+
+
 class TrainingManager:
     """Single active local training process with a persistent, bounded log."""
 
@@ -193,6 +205,10 @@ class TrainingManager:
                 if self._record is None or self._record.get("id") != folder.name:
                     if item.get("status") in ("running", "cancel_requested"):
                         item["status"] = "unknown_after_restart"
+                item["resume_candidates"] = (
+                    _resume_candidates(folder)
+                    if item.get("status") in ("completed", "failed", "cancelled") else []
+                )
                 entries.append(item)
             except (ValueError, OSError):
                 continue
@@ -260,6 +276,10 @@ class TrainingManager:
             result["model_files"] = sorted(
                 p.name for p in root.glob("*.pdparams") if p.is_file()
             )[:50]
+            result["resume_candidates"] = (
+                _resume_candidates(root)
+                if result.get("status") in ("completed", "failed", "cancelled") else []
+            )
             # PaddleOCR outputs epoch: [N/TOTAL] in its normal training log.
             # Parsed progress is informative, not a guarantee of final quality.
             tail = result.get("log_tail", "")
