@@ -46,7 +46,8 @@ class OCRService:
     @staticmethod
     def backends() -> dict[str, bool]:
         return {
-            "rapidocr": importlib.util.find_spec("rapidocr") is not None,
+            "rapidocr": (importlib.util.find_spec("rapidocr") is not None and
+                         importlib.util.find_spec("onnxruntime") is not None),
             "tesseract": (importlib.util.find_spec("pytesseract") is not None and
                           shutil.which("tesseract") is not None),
         }
@@ -65,7 +66,18 @@ class OCRService:
         chosen = self.resolve(engine)
         t0 = time.perf_counter()
         with self._lock:  # keep model initialization and inference bounded
-            lines = self._run_rapid(image) if chosen == "rapidocr" else self._run_tesseract(image)
+            try:
+                lines = self._run_rapid(image) if chosen == "rapidocr" else self._run_tesseract(image)
+            except EngineUnavailable:
+                raise
+            except Exception as exc:
+                if chosen != "rapidocr":
+                    raise
+                self._rapid = None
+                raise EngineUnavailable(
+                    "RapidOCR model initialization/inference failed; verify ONNX Runtime "
+                    "and local model files, then run the real-model smoke test"
+                ) from exc
         return OCRResult(engine=chosen, text="\n".join(l.text for l in lines),
                          lines=lines, width=image.width, height=image.height,
                          elapsed_ms=round((time.perf_counter() - t0) * 1000))
