@@ -152,8 +152,11 @@ class TrainingManager:
                 return {"status": "idle"}
             if self._process is not None:
                 code = self._process.poll()
-                if code is not None and self._record["status"] == "running":
-                    self._record["status"] = "completed" if code == 0 else "failed"
+                if code is not None and self._record["status"] in ("running", "cancel_requested"):
+                    self._record["status"] = (
+                        "cancelled" if self._record["status"] == "cancel_requested"
+                        else ("completed" if code == 0 else "failed")
+                    )
                     self._record["exit_code"] = code
                     self._close_log()
             result = dict(self._record)
