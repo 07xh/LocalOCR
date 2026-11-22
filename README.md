@@ -65,6 +65,12 @@ with urlopen(req, timeout=90) as response:
 
 网页工作台的「PaddleOCR 检测集」按钮或 `GET /v1/datasets/export/paddle-det` 可获取已审核标注的标准检测格式 ZIP；「PaddleOCR 识别集」或 `GET /v1/datasets/export/paddle-rec` 可获取按四点框矫正裁剪的文字识别训练集（`rec_gt_train.txt`、`rec_gt_val.txt`、`rec_gt_test.txt`）。训练/验证/测试划分需要用户在样本中明确设置，工具不会把未分配样本直接用于训练。
 
+### 训练任务历史、模型登记与独立评估
+
+训练工作台新增「查看历史任务」「查看已登记模型」「登记训练产物」「计算 CER / 整行正确率」。模型版本表只保存本地已完成训练产物的路径、哈希与来源，不会自动替换运行中的 RapidOCR。训练日志可显示观测到的轮次进度；服务重启后对无法确认的运行状态明确标记为 `unknown_after_restart`。
+
+准确率评估要求 **test 集独立于训练/验证集**。使用另行生成的 `predictions.jsonl`，每行形如 `{"image":"rec/test/123.png","text":"识别文本"}`，与 `rec_gt_test.txt` 对照计算 CER 和精确匹配率；遗漏预测会计为错误，且不向 API 返回参考文字。这里只建立了可复现的评估入口，**还未跑出针对你实际图片的准确率报告**。
+
 ### 本地 PaddleOCR 模型微调入口
 
 标注工作台底部新增「本地模型训练」折叠栏。操作步骤：
