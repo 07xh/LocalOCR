@@ -60,6 +60,16 @@
 - 产物：`LocalOCR-Windows-x64-portable`，约 133.7 MB，[下载入口](https://github.com/07xh/LocalOCR/actions/runs/45040980898/artifacts/14761518276)；此为 GitHub Actions 限期保留的构建产物，**尚未创建正式 Release**。
 - 未验证完全断网安装、不同 Windows 10/11 设备的浏览器真实交互或 Windows 端 PaddleOCR 训练。
 
+## PR #9 便携版训练入口与离线诊断验收（2026-11-23）
+
+- PR：https://github.com/07xh/LocalOCR/pull/9 （已合并）。
+- 常规 API/数据集回归：https://github.com/07xh/LocalOCR/actions/runs/45042249078 ，**63 passed、3 skipped**；Linux 和 Windows RapidOCR 真模型推理均成功。
+- 跨平台单元回归：https://github.com/07xh/LocalOCR/actions/runs/45042249101 ，Linux、Windows 任务均成功。
+- 实际 Windows 便携版：https://github.com/07xh/LocalOCR/actions/runs/45042249094 ，打包后的 `LocalOCR.exe` 实际完成真实 RapidOCR 文字识别、`doctor --deep` 环境诊断、SQLite 与本地网页/API 验收；Artifact [LocalOCR-Windows-x64-portable](https://github.com/07xh/LocalOCR/actions/runs/45042249094/artifacts/14761314423) 已上传。
+- 本地训练修复：冻结 EXE 不能用 `sys.executable` 直接启动官方训练器；现在要求外部 Python 路径、预先检查 PaddlePaddle 可导入，拒绝错误执行；新增配置/接口与隐私测试。
+- 原有真实 PaddleOCR 训练验收：https://github.com/07xh/LocalOCR/actions/runs/45042249079 ，实际 1 epoch 训练、检查点恢复至 2 epochs、模型加载推理再次通过，日志包含 `REAL_PADDLE_TRAIN_RESUME_OK`。
+- 仍未进行用户个人 Windows 机器真实训练、完全断网验证、复杂实际图片准确率评估；诊断不会暴露 API Key 或绝对路径。
+
 ## 未完成的环境验收
 
 - **当前容器环境**：曾因 DNS/包源问题无法直接安装 RapidOCR；现已由 GitHub Actions 的 Linux/Windows 真模型运行补足该项 CI 验证，当前容器本机环境仍未安装。
