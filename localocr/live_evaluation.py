@@ -81,6 +81,9 @@ def evaluate_reviewed_test(store: DatasetStore, service: OCRService,
                 })
     if not characters:
         raise DatasetError("Reviewed test labels must not all be empty")
+    # If labels changed while OCR was running, reject the inconsistent page.
+    if store.reviewed_test_page(limit=1, offset=0)["fingerprint"] != page["fingerprint"]:
+        raise DatasetError("Reviewed test dataset changed during evaluation; retry")
     for group in length_groups.values():
         group["exact_match_rate"] = (round(group["exact_matches"] / group["regions"], 6)
                                      if group["regions"] else None)
@@ -95,6 +98,7 @@ def evaluate_reviewed_test(store: DatasetStore, service: OCRService,
         "split": "test", "reviewed_only": True,
         "requested_engine": engine, "actual_engines": sorted(engines),
         "available_test_samples": page["total"],
+        "dataset_fingerprint": page["fingerprint"],
         "offset": offset, "next_offset": offset + len(page["items"]),
         "has_more": offset + len(page["items"]) < page["total"],
         "evaluated_samples": len(page["items"]), "evaluated_regions": processed,
