@@ -1,0 +1,2 @@
+# Recommended offline image OCR backend (models may need initial download).
+-e .[rapid]

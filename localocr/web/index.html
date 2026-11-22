@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>LocalOCR · 标注工作台</title>
+  <link rel="stylesheet" href="/assets/studio.css">
+  <script defer src="/assets/studio.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-icon" aria-hidden="true">⌗</span><div><strong>LocalOCR</strong><small>本地标注工作台</small></div></div>
+    <div class="top-right"><span class="offline-dot" aria-hidden="true"></span><span>本地优先 · 数据不上传云端</span><a href="/docs" target="_blank" rel="noopener">API 文档 ↗</a></div>
+  </header>
+  <main class="app">
+    <section class="connect-bar" aria-label="连接服务">
+      <div><strong>连接本地服务</strong><p>运行 <code>python -m localocr key</code> 获取 API Key。密钥仅保留在当前浏览器标签页。</p></div>
+      <div class="key-input"><input id="key" aria-label="API Key" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴本地 API Key"><button id="connect" class="btn primary">连接</button></div>
+      <span id="connection" role="status" class="connection">未连接</span>
+    </section>
+    <div class="stats" aria-label="数据集概览">
+      <div class="metric"><span>样本总数</span><strong id="s-total">—</strong></div>
+      <div class="metric"><span>待审核</span><strong id="s-draft">—</strong></div>
+      <div class="metric"><span>已审核</span><strong id="s-reviewed">—</strong></div>
+      <div class="metric"><span>训练 / 验证 / 测试</span><strong id="s-splits" class="smaller">—</strong></div>
+    </div>
+    <div class="workspace">
+      <aside class="sidebar" aria-label="图片样本">
+        <div class="panel-header"><h2>图片样本</h2><label class="btn small" for="files">+ 导入</label><input id="files" type="file" multiple accept="image/png,image/jpeg,image/webp,image/bmp,image/tiff" hidden></div>
+        <div class="import-hint">导入本地图片 → 框选区域 → 修正文字 → 审核</div>
+        <div id="sample-list" class="sample-list" aria-live="polite"><p class="empty">连接后显示样本</p></div>
+        <div class="aside-bottom"><button id="refresh" class="btn ghost">刷新</button><button id="export" class="btn ghost" title="只导出已审核的样本">导出已审核 ZIP</button></div>
+      </aside>
+      <section class="editor" aria-label="图片标注编辑器">
+        <div class="editor-toolbar"><div><h2 id="image-title">选择图片开始标注</h2><span id="image-meta">可将 OCR 识别结果作为建议，人工检查后再保存</span></div><div class="tool-actions"><button id="suggest" class="btn" disabled>OCR 建议</button><button id="save" class="btn primary" disabled>保存标注</button></div></div>
+        <div class="canvas-area"><div class="canvas-help" id="canvas-help"><span class="big-icon">▧</span><strong>在图片上拖动鼠标创建文字框</strong><span>导入图片后即可开始 · 点击已有标注框可选中</span></div><div id="image-stage" class="image-stage" hidden><img id="document-image" alt="待标注的本地图片"><canvas id="overlay" aria-label="图像标注区域"></canvas></div></div>
+        <div class="help-bar">框选后在右侧修改文本；标注坐标使用原图像素。OCR 建议不会自动视为正确答案。</div>
+      </section>
+      <aside class="inspector" aria-label="标注信息">
+        <div class="panel-header"><h2>标注详情</h2><span id="item-count" class="small-count">0 项</span></div>
+        <div id="annotation-list" class="annotation-list"><p class="empty">尚未选择样本</p></div>
+        <div class="inspect-bottom">
+          <label for="source">数据来源说明</label><input id="source" placeholder="例：本人拍摄的课程笔记" disabled maxlength="160">
+          <label for="split">数据集划分</label><select id="split" disabled><option value="unassigned">未分配</option><option value="train">训练集</option><option value="val">验证集</option><option value="test">测试集</option></select>
+          <div class="buttons"><button id="metadata-save" class="btn" disabled>保存属性</button><button id="review" class="btn" disabled>标记为已审核</button></div>
+          <button id="delete" class="text-danger" disabled>删除当前样本</button>
+          <p class="fineprint">只有人工审核过的样本才能导出为训练数据。模型训练和微调尚未接入。</p>
+        </div>
+      </aside>
+    </div>
+    <div id="notice" role="status" class="notice" aria-live="polite"></div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,2 @@
+# Alternate backend: also install Tesseract OCR executable and language models separately.
+-e .[tesseract]
