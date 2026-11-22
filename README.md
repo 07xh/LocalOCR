@@ -12,9 +12,9 @@
 
 ## Windows 便携 EXE（GitHub Actions 构建）
 
-仓库新增 [Windows EXE CI](.github/workflows/windows-exe.yml)，采用 PyInstaller 的 **onedir** 模式，把 LocalOCR、网页资源、RapidOCR 和 ONNX 模型打包成 `LocalOCR-Windows-x64-portable.zip`。只有 CI 中实际运行生成的 EXE 通过模型加载、合成图像识别和本地 Studio API 测试才会上载该文件为 Actions 构建产物（**不是 GitHub Release**）。
+仓库新增 [Windows EXE CI](.github/workflows/windows-exe.yml)；[已通过验收的便携包](https://github.com/07xh/LocalOCR/actions/runs/45040980898/artifacts/14761518276)（需要登录 GitHub 下载，Actions 产物有保留期限），采用 PyInstaller 的 **onedir** 模式，把 LocalOCR、网页资源、RapidOCR 和 ONNX 模型打包成 `LocalOCR-Windows-x64-portable.zip`。只有 CI 中实际运行生成的 EXE 通过模型加载、合成图像识别和本地 Studio API 测试才会上载该文件为 Actions 构建产物（**不是 GitHub Release**）。
 
-解压整个 ZIP，双击 `LocalOCR.exe` 可打开本地工作台。要显示 API Key，在解压目录打开终端执行 `LocalOCR.exe key`。不可只复制 EXE、删掉 `_internal` 目录；模型及 DLL 位于同一分发目录。训练功能仍需另外安装完整 PaddlePaddle/PaddleOCR 和本地预训练权重，**不包含在便携包内**。
+GitHub Actions 下载的外层 artifact ZIP 内可能还包含一个分发 ZIP，请逐层解压后，双击 `LocalOCR.exe` 可打开本地工作台。要显示 API Key，在解压目录打开终端执行 `LocalOCR.exe key`。不可只复制 EXE、删掉 `_internal` 目录；模型及 DLL 位于同一分发目录。训练功能仍需另外安装完整 PaddlePaddle/PaddleOCR 和本地预训练权重，**不包含在便携包内**。
 
 注意：CI 通过只证明 Windows Runner 的安装/识别/启动工作流；用户电脑、杀毒软件和不同 Windows 版本仍需实机验收。
 
@@ -121,6 +121,6 @@ LocalOCR/
 
 ## 实际限制与后续
 
-现阶段是**可运行的本地 OCR + 数据标注工作台源码**，**并非完整训练软件或已经发布的 EXE**。已添加 PaddleOCR 检测标注格式导出，已通过 Linux/Windows CI 的 RapidOCR 真实模型推理测试；已完成 Linux CI 合成数据的实际训练、续训与模型推理链路；Windows UI 实机、便携版打包和真实图片精度仍待验收。代码不包含任何第三方网站验证码在线验证/自动注册操作。
+现阶段有**可运行的本地 OCR + 数据标注工作台源码**，并已由 Windows GitHub Actions **实际打包便携 EXE 并运行真实 OCR、网页及鉴权验收**，但尚非 GitHub Releases 正式发行版，也未完成用户电脑上的实机验收。已完成 Linux CI 合成数据的实际模型训练、续训与推理链路；Windows 图形界面实机、完全断网启动和真实图片识别准确率仍待验收。代码不包含任何第三方网站验证码在线验证/自动注册操作。
 
 测试：`python -m pip install -e '.[dev,tesseract]'` 后运行 `python -m pytest -q`。参考项目及许可证核查入口见 [`docs/SOURCES.md`](docs/SOURCES.md)。
