@@ -5,7 +5,7 @@
 - [x] Python 包、CLI、Tesseract 实际图像 OCR、RapidOCR 3.x 格式适配层。
 - [x] 统一 OCR 输出文本、坐标框、置信度、耗时。
 - [x] 本地鉴权 HTTP API 和图像格式/尺寸校验。
-- [ ] RapidOCR / ONNX Runtime 实际加载模型与中英文真实推理验收（当前环境下载源不通）。
+- [ ] RapidOCR / ONNX Runtime 实际加载模型与中英文真实推理验收（已加入 Linux/Windows CI 真模型测试，运行结果仍需确认）。
 - [ ] Windows RapidOCR 完全离线启动与独立 EXE 真机验收。
 
 ## v0.2：可视化样本标注与审核准备（本次）
@@ -20,7 +20,7 @@
 ## v0.3：训练准备与评估
 
 - [ ] 基于整张图划分训练/验证/测试集，支持固定随机种子和组级划分。
-- [ ] 兼容 PPOCRLabel / PaddleOCR 标准格式的导出插件。
+- [x] 兼容 PPOCRLabel / PaddleOCR 的文字检测（det）格式导出；识别（rec）裁剪集后续开发。
 - [ ] 标注变更审计、批量审核、质量抽样与版本快照。
 - [ ] 标准测试集的字错率 CER、行级精确匹配率与延迟评估。
 - [ ] 数据备份和恢复、分页与更大规模样本列表、任务队列取消。
