@@ -6,9 +6,9 @@
 
 - **引擎**：Tesseract OCR（已进行真实图片识别），RapidOCR 3.x/ONNX 适配层（真实模型推理待验收）。
 - **API**：只绑定本机 `127.0.0.1:18765` 的 FastAPI 服务，需要持久化随机 API Key；Base64 PNG/JPEG/WEBP/BMP/TIFF 输入。
-- **数据集**：本地 SQLite + 原图转 PNG，重复图片去重、人工审核、版本冲突保护、train/val/test 数据集分组、ZIP 导出。
+- **数据集**：本地 SQLite + 原图转 PNG，重复图片去重、人工审核、版本冲突保护、train/val/test 数据集分组、原 JSONL ZIP 导出，并新增 PPOCRLabel/PaddleOCR **文字检测标注** ZIP（仅已审核数据，不改变原 API）。
 - **标注界面**：内置本地页面，支持导入、预览、鼠标框选、OCR 建议、手动纠错、保存、审核。
-- **测试**：25 个 Python 单元/API 测试通过，真实 Tesseract OCR 通过。Windows 浏览器交互和 RapidOCR 真机尚未验收。
+- **测试**：原有 25 项 Python 单元/API 测试与真实 Tesseract OCR 此前通过；新增 PaddleOCR 格式/API 回归测试和 Linux/Windows RapidOCR **真实模型** CI 验收流程，新增检查通过情况以 PR 状态为准。Windows 浏览器交互与实际部署仍需验收。
 
 ## Windows 安装（推荐 Windows 10/11，Python 3.10+）
 
@@ -63,6 +63,8 @@ with urlopen(req, timeout=90) as response:
     print(json.load(response)['text'])
 ```
 
+网页工作台的「PaddleOCR 检测集」按钮或 `GET /v1/datasets/export/paddle-det` 可获取已审核标注的标准检测格式 ZIP；训练/验证/测试划分需要用户在样本中明确设置，工具不会把未分配样本直接用于训练。
+
 其他接口请查看 [`docs/API.md`](docs/API.md)。成功响应包含 `engine`, `text`, `lines`, `width`, `height`, `elapsed_ms`。OCR 的模型猜测**不会自动存为真值**，需要人工核对保存；只审核过的样本会进入默认 ZIP 导出。
 
 ## 项目结构
@@ -85,6 +87,6 @@ LocalOCR/
 
 ## 实际限制与后续
 
-现阶段是**可运行的本地 OCR + 数据标注工作台源码**，**并非完整训练软件或已经发布的 EXE**。尚未完成 RapidOCR 的模型实测、Windows UI 实机验收、PPOCRLabel/PaddleOCR 训练格式转换和模型微调。代码不包含任何第三方网站验证码在线验证/自动注册操作。
+现阶段是**可运行的本地 OCR + 数据标注工作台源码**，**并非完整训练软件或已经发布的 EXE**。已添加 PaddleOCR 检测标注格式导出，仍未完成 RapidOCR 的模型实测验收、Windows UI 实机验收、文字识别（rec）训练集转换或模型微调。代码不包含任何第三方网站验证码在线验证/自动注册操作。
 
 测试：`python -m pip install -e '.[dev,tesseract]'` 后运行 `python -m pytest -q`。参考项目及许可证核查入口见 [`docs/SOURCES.md`](docs/SOURCES.md)。
