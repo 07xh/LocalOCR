@@ -1,0 +1,41 @@
+name: Windows portable EXE build and smoke test
+
+on:
+  pull_request:
+    paths:
+      - 'localocr/**'
+      - 'scripts/windows_entry.py'
+      - 'scripts/smoke_windows_bundle.py'
+      - '.github/workflows/windows-exe.yml'
+      - 'pyproject.toml'
+  push:
+    branches: [main, feat/windows-package-training-smoke-20261122]
+  workflow_dispatch:
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install project and binary packager
+        run: |
+          python -m pip install ".[rapid]"
+          python -m pip install "pyinstaller>=6,<7"
+      - name: Bundle offline OCR models, local UI and dependencies
+        run: |
+          pyinstaller --noconfirm --clean --onedir --console --name LocalOCR --collect-data localocr --collect-submodules localocr --hidden-import sqlite3 --hidden-import _sqlite3 --collect-all rapidocr --collect-all onnxruntime --collect-all fastapi --collect-all starlette --collect-all pydantic --collect-all anyio --collect-all uvicorn --hidden-import localocr.api --hidden-import uvicorn.logging --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.lifespan.on scripts/windows_entry.py
+      - name: Run real frozen-executable acceptance
+        run: python scripts/smoke_windows_bundle.py dist/LocalOCR/LocalOCR.exe
+      - name: Prepare distribution
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/LocalOCR/* -DestinationPath LocalOCR-Windows-x64-portable.zip -CompressionLevel Optimal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalOCR-Windows-x64-portable
+          path: LocalOCR-Windows-x64-portable.zip
+          retention-days: 7
