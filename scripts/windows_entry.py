@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import sys
 
+# A static import forces PyInstaller to analyze the complete FastAPI/SQLite
+# dependency graph; data collection alone does not compile nested imports.
+from localocr.api import app as _bundled_app
 from localocr.cli import main
 
 if __name__ == "__main__":
