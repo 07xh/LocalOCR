@@ -218,5 +218,64 @@
   }
   el('export').addEventListener('click',()=>attempt(exportZip));
   el('export-paddle').addEventListener('click',()=>attempt(exportPaddle));
+  async function exportRecognition() {
+    const zip = await request('/v1/datasets/export/paddle-rec');
+    const url = URL.createObjectURL(zip);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'localocr-paddle-rec.zip';
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast('已导出人工审核的识别训练集，请先解压并检查训练/验证分组');
+  }
+  function trainingConfig() {
+    return {
+      paddle_repo: el('train-repo').value.trim(),
+      dataset_dir: el('train-data').value.trim(),
+      pretrained_model: el('train-weight').value.trim(),
+      epochs: Number(el('train-epochs').value),
+      batch_size: Number(el('train-batch').value),
+      use_gpu: el('train-gpu').value === 'true'
+    };
+  }
+  async function trainingPlan() {
+    const plan = await request('/v1/training/plan',
+      {method:'POST', body:JSON.stringify(trainingConfig())});
+    el('train-output').textContent =
+      '配置校验通过。训练数 ' + plan.train_count + ' · 验证数 ' +
+      plan.val_count + ' · 保留测试数 ' + plan.test_count +
+      '\n模型输出: ' + plan.output_dir +
+      '\n请确认数据和预训练权重来源后再点击启动。';
+  }
+  async function trainingStart() {
+    if (!confirm('将使用本机计算资源运行 PaddleOCR 模型微调。确定启动吗？')) return;
+    const status = await request('/v1/training/start',
+      {method:'POST', body:JSON.stringify(trainingConfig())});
+    displayTrainingStatus(status);
+    toast('训练任务已启动，请通过状态与日志确认真实训练是否成功');
+  }
+  function displayTrainingStatus(status) {
+    el('train-output').textContent =
+      '任务状态：' + status.status +
+      (status.id ? '\n任务：' + status.id : '') +
+      (status.output_dir ? '\n模型目录：' + status.output_dir : '') +
+      (status.exit_code !== null && status.exit_code !== undefined
+        ? '\n退出码：' + status.exit_code : '') +
+      (status.model_files && status.model_files.length
+        ? '\n模型文件：' + status.model_files.join(', ') : '') +
+      (status.log_tail ? '\n\n最后日志：\n' + status.log_tail : '');
+  }
+  async function trainingStatus() {
+    displayTrainingStatus(await request('/v1/training/status'));
+  }
+  async function trainingCancel() {
+    if (!confirm('确定停止当前本地模型训练任务吗？')) return;
+    displayTrainingStatus(await request('/v1/training/cancel', {method:'POST'}));
+  }
+  el('export-rec').addEventListener('click',()=>attempt(exportRecognition));
+  el('train-plan').addEventListener('click',()=>attempt(trainingPlan));
+  el('train-start').addEventListener('click',()=>attempt(trainingStart));
+  el('train-status').addEventListener('click',()=>attempt(trainingStatus));
+  el('train-cancel').addEventListener('click',()=>attempt(trainingCancel));
+
   showButtons();if(key)attempt(connect);
 })();
