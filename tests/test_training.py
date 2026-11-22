@@ -139,3 +139,61 @@ def test_training_plan_api_needs_auth_and_returns_readiness(tmp_path):
     assert response.json()["train_count"] == 3
     assert client.post("/v1/training/start", json={**payload, "epochs": 0},
                        headers={"X-API-Key": "example-training-key"}).status_code == 422
+
+
+
+def test_explicit_python_preflight_and_training_command(tmp_path, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    repo, data, weights = fixture_layout(tmp_path)
+    calls = []
+    def import_paddle(args, **kwargs):
+        calls.append(args)
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr("localocr.training.subprocess.run", import_paddle)
+    plan = build_plan(
+        str(repo), str(data), str(weights), batch_size=2,
+        training_python=sys.executable, output_dir=tmp_path / "explicit"
+    )
+    assert plan["args"][0] == str(Path(sys.executable).resolve())
+    assert calls[0][1:] == ["-c", "import paddle; print(paddle.__version__)"]
+    assert plan["training_config"]["training_python"] == str(Path(sys.executable).resolve())
+
+
+def test_frozen_exe_requires_real_external_python(tmp_path, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    repo, data, weights = fixture_layout(tmp_path)
+    real_python = sys.executable
+    fake_exe = tmp_path / "LocalOCR.exe"
+    fake_exe.write_bytes(b"frozen fixture")
+    monkeypatch.setattr("localocr.training.sys.frozen", True, raising=False)
+    monkeypatch.setattr("localocr.training.sys.executable", str(fake_exe))
+    with pytest.raises(TrainingError, match="Portable LocalOCR.exe"):
+        build_plan(str(repo), str(data), str(weights), batch_size=2)
+    with pytest.raises(TrainingError, match="Python interpreter"):
+        build_plan(str(repo), str(data), str(weights),
+                   batch_size=2, training_python=str(fake_exe))
+    monkeypatch.setattr(
+        "localocr.training.subprocess.run",
+        lambda args, **kwargs: SimpleNamespace(returncode=0),
+    )
+    plan = build_plan(str(repo), str(data), str(weights),
+                      batch_size=2, training_python=real_python)
+    assert plan["args"][0] == str(Path(real_python).resolve())
+
+
+def test_training_python_missing_paddle_is_rejected_before_start(tmp_path, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    repo, data, weights = fixture_layout(tmp_path)
+    monkeypatch.setattr(
+        "localocr.training.subprocess.run",
+        lambda args, **kwargs: SimpleNamespace(returncode=1),
+    )
+    with pytest.raises(TrainingError, match="cannot import PaddlePaddle"):
+        build_plan(str(repo), str(data), str(weights),
+                   batch_size=2, training_python=sys.executable)

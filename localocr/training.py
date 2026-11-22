@@ -51,6 +51,7 @@ def build_plan(
     output_dir: Path | None = None,
     resume_run_id: str | None = None, resume_checkpoint: str = "latest",
     resume_root: Path | None = None,
+    training_python: str | None = None,
 ) -> dict:
     """Validate all local inputs and build a fixed, shell-free command."""
     repo = Path(paddle_repo).expanduser().resolve()
@@ -65,6 +66,40 @@ def build_plan(
         raise TrainingError("Recognition data directory does not exist")
     if not weights.is_file() or weights.suffix != ".pdparams":
         raise TrainingError("Choose a local .pdparams pretrained weight file")
+    # Inside a PyInstaller EXE sys.executable points to LocalOCR.exe, NOT a
+    # Python interpreter. Launching tools/train.py with that path would start
+    # a second LocalOCR process and immediately fail. Require an explicit
+    # local Python interpreter that has PaddlePaddle installed.
+    if getattr(sys, "frozen", False) and not training_python:
+        raise TrainingError(
+            "Portable LocalOCR.exe cannot train with its bundled runtime; "
+            "select the python.exe from a separate PaddlePaddle environment"
+        )
+    python = Path(training_python).expanduser().resolve() if training_python else Path(sys.executable).resolve()
+    if not python.is_file() or not re.fullmatch(
+        r"python(?:w)?(?:[0-9]+(?:\.[0-9]+)?)?(?:\.exe)?",
+        python.name, re.IGNORECASE,
+    ):
+        raise TrainingError("Choose an existing Python interpreter (python.exe or python3)")
+    if getattr(sys, "frozen", False) and python == Path(sys.executable).resolve():
+        raise TrainingError("Select an external Python interpreter, not LocalOCR.exe")
+    if training_python:
+        # An explicit interpreter must really have PaddlePaddle available.
+        # Never attempt installation or make remote requests here.
+        try:
+            check = subprocess.run(
+                [str(python), "-c", "import paddle; print(paddle.__version__)"],
+                stdin=subprocess.DEVNULL, capture_output=True, timeout=20,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise TrainingError("Cannot start the selected PaddlePaddle Python interpreter") from exc
+        if check.returncode != 0:
+            raise TrainingError(
+                "The selected Python cannot import PaddlePaddle; "
+                "install a compatible PaddlePaddle package in that environment"
+            )
+
     if isinstance(epochs, bool) or not isinstance(epochs, int) or not 1 <= epochs <= 50:
         raise TrainingError("epochs must be 1–50")
     if isinstance(batch_size, bool) or not isinstance(batch_size, int) or not 1 <= batch_size <= 32:
@@ -86,6 +121,7 @@ def build_plan(
         "use_gpu": use_gpu, "config_file": config_name,
         "train_labels_sha256": sha256((data / "rec_gt_train.txt").read_bytes()).hexdigest(),
         "val_labels_sha256": sha256((data / "rec_gt_val.txt").read_bytes()).hexdigest(),
+        **({"training_python": str(python)} if training_python else {}),
     }
     source_run = None
     checkpoint_prefix = None
@@ -140,13 +176,14 @@ def build_plan(
         "Train.loader.num_workers": 0,
         "Eval.loader.num_workers": 0,
     }
-    args = [sys.executable, "tools/train.py", "-c", config_name, "-o"]
+    args = [str(python), "tools/train.py", "-c", config_name, "-o"]
     args.extend(f"{key}={json.dumps(value, ensure_ascii=False)}" for key, value in options.items())
     return {
         "cwd": str(repo), "args": args, "output_dir": str(output),
         "train_count": train, "val_count": val, "test_count": test,
         "epochs": epochs, "batch_size": batch_size, "use_gpu": use_gpu,
         "training_config": config_identity, "resume_from": source_run,
+        "training_python": str(python),
         "note": "PaddleOCR training process requires PaddlePaddle in this Python environment. "
                 "Test split is reserved and never passed to the trainer.",
     }

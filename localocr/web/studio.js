@@ -229,6 +229,7 @@
   }
   function trainingConfig() {
     return {
+      ...(el('train-python').value.trim() ? {training_python: el('train-python').value.trim()} : {}),
       paddle_repo: el('train-repo').value.trim(),
       dataset_dir: el('train-data').value.trim(),
       pretrained_model: el('train-weight').value.trim(),
@@ -494,6 +495,19 @@
         predictions_path: el('eval-predictions').value.trim()
       })
     }));
+  }));
+  el('doctor').addEventListener('click', () => attempt(async () => {
+    const report = await request('/v1/diagnostics');
+    el('doctor-output').hidden = false;
+    el('doctor-output').textContent =
+      '本地环境：' + (report.ready ? '基础检查通过' : '发现未就绪项目') +
+      '\\n运行模式：' + report.runtime +
+      '\\nSQLite：' + (report.checks.sqlite_usable ? '正常' : '不可用') +
+      '\\n数据目录：' + (report.checks.storage_writable ? '可写' : '不可写') +
+      '\\n工作台资源：' + (report.checks.studio_assets_present ? '齐全' : '缺失') +
+      '\\nOCR 后端：' + Object.entries(report.backends).map(([name, ok]) => name + '=' + (ok ? '已安装' : '未安装')).join('、') +
+      '\\n本地 ONNX 文件数量：' + report.packaged_onnx_count +
+      '\\n注意：基础检查不等同于识别质量或完全断网验收。';
   }));
   showButtons();if(key)attempt(connect);
 })();

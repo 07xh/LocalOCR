@@ -30,6 +30,6 @@
 - [x] 本地 PaddleOCR v5 mobile-rec 微调任务接入：显式本地源码/权重、训练/验证数据校验、启动/取消/日志状态；Linux CI 合成样本真实训练通过，待 Windows/真实数据验收。
 - [x] 训练状态持久化、历史任务、日志解析轮次、已完成产物哈希登记；[x] 基于 `Global.checkpoints` 的受限本地断点续训入口（Linux CI 已完成真实恢复验收，待 Windows/真实数据测试）；[ ] 模型加载适配、自动评估、启用/回滚尚未开发。
 - [ ] 在从未参与训练的真实测试集上运行模型推理并报告准确率和速度；模型回滚仍未开发。
-- [x] Windows CI PyInstaller onedir 便携包实际构建、模型推理、Studio HTTP 与鉴权测试通过；[ ] 正式 Release、个人 Windows 10/11 图形界面实机、完全断网安装验收。
+- [x] Windows CI PyInstaller onedir 便携包实际构建、模型推理、Studio HTTP 与鉴权测试通过；[x] 新增离线诊断、Windows 便携包独立 Python 训练路径及 PaddlePaddle 导入预检；[ ] 正式 Release、个人 Windows 10/11 图形界面实机、完全断网安装验收。
 
 现有界面是 **样本标注/训练准备工作台**，并不等于神经网络模型已经能在 UI 中执行训练。原私人仓库 `tk_tool` 的识别实现与样本库保持不变，也不包含对第三方服务在线验证码的验证或批量尝试。

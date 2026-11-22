@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from . import __version__
 from .dataset import DatasetStore, DatasetError, MissingSample, VersionConflict
 from .engine import EngineUnavailable, OCRService
+from .doctor import diagnose
 from .image_io import InvalidImage, decode_base64
 from .paddle_export import export_detection_zip
 from .rec_export import export_recognition_zip
@@ -51,6 +52,7 @@ class TrainingRequest(BaseModel):
     paddle_repo: str = Field(min_length=1, max_length=1024)
     dataset_dir: str = Field(min_length=1, max_length=1024)
     pretrained_model: str = Field(min_length=1, max_length=1024)
+    training_python: str | None = Field(default=None, min_length=1, max_length=1024)
     epochs: int = Field(default=10, ge=1, le=50)
     batch_size: int = Field(default=4, ge=1, le=32)
     use_gpu: bool = False
@@ -136,6 +138,11 @@ def create_app(service: OCRService | None = None, token: str | None = None,
     @app.get("/v1/engines", dependencies=[Depends(authorize)])
     def engines():
         return {"available": engine.backends(), "auto_priority": ["rapidocr", "tesseract"]}
+
+    @app.get("/v1/diagnostics", dependencies=[Depends(authorize)])
+    def diagnostics():
+        """Local-only readiness checks; never returns secret values or paths."""
+        return diagnose(deep=False)
 
     @app.post("/v1/ocr", dependencies=[Depends(authorize)])
     def recognize(req: OCRRequest):
@@ -267,6 +274,7 @@ def create_app(service: OCRService | None = None, token: str | None = None,
                 epochs=req.epochs, batch_size=req.batch_size, use_gpu=req.use_gpu,
                 resume_run_id=req.resume_run_id,
                 resume_checkpoint=req.resume_checkpoint,
+                training_python=req.training_python,
             )
         except (TrainingError, OSError) as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
