@@ -8,6 +8,7 @@
 
 - `GET /health`：服务版本和存活状态。
 - `GET /v1/engines`：已安装的识别后端（不代表模型已完成推理验收）。
+- `GET /v1/diagnostics`：需要 API Key 的本机健康诊断，返回布尔状态和本地 ONNX 文件数量，不返回密钥或文件路径；不默认执行模型推理。
 - `POST /v1/ocr`：`{"image_base64":"...","engine":"auto"}`，返回文本、行坐标、置信度和耗时。
 
 单图限制：二进制最多 8 MiB、像素最多 1200 万；PNG/JPEG/WEBP/BMP/TIFF。仅支持 Base64 内容或数据 URI，不接受图片 URL。
@@ -30,7 +31,7 @@
 | `GET /v1/datasets/export?reviewed_only=true` | 原有 JSONL ZIP 导出 | 默认仅人工审核样本 |
 | `GET /v1/datasets/export/paddle-det` | PPOCRLabel/PaddleOCR 检测标注 ZIP | 仅人工审核，按已有 split 输出 |
 | `GET /v1/datasets/export/paddle-rec` | PaddleOCR 文字识别裁剪 ZIP | 仅已审核且明确分到 train/val/test 的样本 |
-| `POST /v1/training/plan` | 在本机验证 PaddleOCR 训练配置，返回固定命令 | `paddle_repo`、`dataset_dir`、`pretrained_model`、`epochs`、`batch_size`、`use_gpu`；可选 `resume_run_id`、`resume_checkpoint` |
+| `POST /v1/training/plan` | 在本机验证 PaddleOCR 训练配置，返回固定命令 | `paddle_repo`、`dataset_dir`、`pretrained_model`、`epochs`、`batch_size`、`use_gpu`；可选 `resume_run_id`、`resume_checkpoint`、`training_python`（独立 PaddlePaddle Python 解释器绝对路径，Windows 便携 EXE 必填） |
 | `POST /v1/training/start` | 本地启动单个 PaddleOCR 识别微调进程 | 同上；需明确由用户触发 |
 | `GET /v1/training/status` | 查询状态、退出码、最近日志及已生成权重文件 | 无 |
 | `POST /v1/training/cancel` | 终止当前本地训练任务 | 无 |
@@ -51,7 +52,9 @@
 
 训练计划与启动 API 支持可选 `resume_run_id`（此前本机的 32 位任务 ID）和 `resume_checkpoint`（`latest` 或 `best_accuracy`）。只有存在 `.pdparams`、`.pdopt`、`.states` 三件文件、此前任务已结束，并且 PaddleOCR 源码目录、预训练权重、设备、批量大小与 **train/val 标签 SHA-256** 一致时才允许恢复。PaddleOCR 使用 `Global.checkpoints` 恢复权重、优化器和轮次；不会把单个权重文件当作可恢复任务。新轮次写入**新的任务目录**，不覆盖旧检查点。
 
-旧版本的训练记录若没有可靠保存训练配置，会被拒绝恢复；需要先执行一项带完整训练配置记录的新任务。这是为避免错误模型与数据混合。对于已完成的任务，目标训练总轮次必须大于此前设置的轮次。只通过 CI 模拟任务验证数据接口和恢复参数，**尚未实际跑过 PaddleOCR 的跨任务完整续训**。
+旧版本的训练记录若没有可靠保存训练配置，会被拒绝恢复；需要先执行一项带完整训练配置记录的新任务。这是为避免错误模型与数据混合。对于已完成的任务，目标训练总轮次必须大于此前设置的轮次。已在 Linux GitHub Actions 使用官方 PaddleOCR 和合成文字样本真实完成训练、保存检查点、续训与模型加载推理；仍需 Windows 训练与实际图片准确率验收。
+
+**便携包训练特别说明**：`LocalOCR.exe` 是封装后的本地 OCR 可执行程序，不是 Python 训练解释器。未指定 `training_python` 时训练计划将直接返回 400；指定后会验证其是本机 Python 并能导入 PaddlePaddle，避免误启动 LocalOCR.exe 自身。默认源码模式仍使用当前 Python 解释器。所有操作只在本机执行，不自动安装依赖或上传图片。
 
 ## 独立识别评估协议
 
