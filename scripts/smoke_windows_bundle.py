@@ -50,6 +50,19 @@ def main() -> int:
     assert "HELLO" in compact and "2026" in compact, output
     print("Frozen Windows RapidOCR: recognition success")
 
+    doctor = subprocess.run(
+        [str(exe), "doctor", "--deep"], cwd=cwd, env=environment,
+        capture_output=True, text=True, timeout=180, check=True,
+    )
+    report = json.loads(doctor.stdout)
+    assert report["runtime"] == "portable-exe", report
+    assert report["checks"]["sqlite_usable"] is True, report
+    assert report["checks"]["studio_assets_present"] is True, report
+    assert report["packaged_onnx_count"] > 0, report
+    assert report["deep_inference"] == "passed" and report["ready"], report
+    assert "api_key" not in doctor.stdout
+    print("Frozen Windows doctor: SQLite, bundled models and local OCR passed")
+
     proc = subprocess.Popen(
         [str(exe), "studio", "--no-browser", "--port", "18769"],
         cwd=cwd, env=environment,
