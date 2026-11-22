@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="light">
   <title>LocalOCR · 标注工作台</title>
   <link rel="stylesheet" href="/assets/studio.css">
+  <script defer src="/assets/quality_report.js"></script>
   <script defer src="/assets/studio.js"></script>
 </head>
 <body>
@@ -96,8 +97,9 @@
           <button id="eval-local-next" type="button" class="btn" disabled>评估下一批</button>
           <button id="eval-local-all" type="button" class="btn">批量汇总（最多 150 张）</button>
           <button id="eval-local-stop" type="button" class="btn" disabled>停止批量评估</button>
+          <button id="eval-local-export" type="button" class="btn" disabled>导出 JSON 报告</button>
         </div>
-        <p class="fineprint">批量汇总仅在当前页面临时计算，不保存图片或预测结果；按样本数与字符数加权合并，不能直接平均各批次准确率。过程中可以停止，未完成时会明确标注为部分结果。</p>
+        <p class="fineprint">批量汇总只在当前页面临时计算。可以导出含测试集版本指纹、总计和错误区域索引的 JSON 报告，**不包含原始文字、预测文字或图片**。停止、超限或失败时会标注为部分报告。</p>
         <h3>离线识别评估（已有方式）</h3>
         <p class="fineprint">把同一模型在保留测试集上的识别结果整理成 JSONL：每行为 {"image":"rec/test/....png","text":"识别结果"}。只统计测试集，不使用训练/验证集评估。</p>
         <div class="training-fields">
