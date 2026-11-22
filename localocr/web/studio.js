@@ -229,6 +229,7 @@
   }
   function trainingConfig() {
     return {
+      ...(el('train-python').value.trim() ? {training_python: el('train-python').value.trim()} : {}),
       paddle_repo: el('train-repo').value.trim(),
       dataset_dir: el('train-data').value.trim(),
       pretrained_model: el('train-weight').value.trim(),
