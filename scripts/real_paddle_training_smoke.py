@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 import sys
 import time
@@ -86,6 +87,26 @@ def main() -> int:
     print("Beginning stage 2 checkpoint resumption")
     two = run_training(manager, second)
     assert two["resume_from"]["run_id"] == one["id"]
+    # Use the actual checkpoint with PaddleOCR's official recognition inference
+    # utility; the tiny corpus is not used as a claim of accurate general OCR.
+    image = data / "rec" / "test" / "sample_000.png"
+    checkpoint = Path(two["output_dir"]) / "latest"
+    inference = [
+        sys.executable, "tools/infer_rec.py", "-c",
+        "configs/rec/PP-OCRv5/PP-OCRv5_mobile_rec.yml", "-o",
+        "Global.checkpoints=" + json.dumps(str(checkpoint)),
+        "Global.use_gpu=false",
+        "Global.distributed=false",
+        "Global.infer_img=" + json.dumps(str(image)),
+    ]
+    inferred = subprocess.run(inference, cwd=repo, text=True,
+                              capture_output=True, timeout=180)
+    if inferred.returncode != 0:
+        raise AssertionError(
+            "PaddleOCR trained-checkpoint inference failed: " +
+            (inferred.stdout + inferred.stderr)[-6000:]
+        )
+    print("PaddleOCR trained checkpoint loaded for real inference")
     print("REAL_PADDLE_TRAIN_RESUME_OK")
     # Training is validated; model quality requires an independent benchmark.
     return 0
