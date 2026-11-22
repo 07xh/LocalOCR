@@ -136,3 +136,32 @@ def test_length_groups_and_empty_prediction_are_safe(tmp_path):
     assert data["quality"]["latency_ms_p90"] == 11
     assert len(data["error_examples"]) == 3
     assert "ABCDEFGHIJKLM" not in str(data["error_examples"])
+
+
+def test_fingerprint_changes_on_annotation_revision(tmp_path):
+    c, store, ocr = client(tmp_path)
+    item = sample(store, color="white", text="Alpha")
+    first = post(c)
+    assert first.status_code == 200
+    fingerprint = first.json()["dataset_fingerprint"]
+    assert len(fingerprint) == 64
+    same = post(c)
+    assert same.json()["dataset_fingerprint"] == fingerprint
+    # Changing a reviewed label reverts its status to draft, changing the set.
+    store.put_annotations(item["id"], item["revision"],
+                          [{"text": "Changed", "box": BOX}])
+    assert store.reviewed_test_page()["fingerprint"] != fingerprint
+
+
+def test_reject_mid_inference_label_change(tmp_path):
+    c, store, ocr = client(tmp_path)
+    item = sample(store, color="white", text="Alpha")
+    original = ocr.run
+    def change_during_inference(image, engine="auto"):
+        store.put_annotations(item["id"], item["revision"],
+                              [{"text": "New value", "box": BOX}])
+        return original(image, engine)
+    ocr.run = change_during_inference
+    response = post(c)
+    assert response.status_code == 400
+    assert "changed during evaluation" in response.text
