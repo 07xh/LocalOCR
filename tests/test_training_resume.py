@@ -151,3 +151,16 @@ def test_resume_api_auth_and_parameter_validation(tmp_path, monkeypatch):
                       json={**payload, "resume_run_id": "../../other"},
                       headers={"X-API-Key": "test-resume-only"})
     assert bad.status_code == 422
+
+
+def test_history_exposes_only_complete_resume_candidates(tmp_path):
+    from localocr.training import TrainingManager
+    repo, data, weight = make_fixture(tmp_path)
+    root = tmp_path / "training" / "runs"
+    folder = previous_run(repo, data, weight, root, status="failed")
+    manager = TrainingManager(tmp_path / "training")
+    history = manager.history()
+    assert len(history) == 1
+    assert history[0]["resume_candidates"] == ["latest"]
+    (folder / "latest.states").unlink()
+    assert manager.history()[0]["resume_candidates"] == []
