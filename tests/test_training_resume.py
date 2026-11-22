@@ -84,7 +84,7 @@ def test_resume_best_accuracy_and_completed_epoch_guard(tmp_path):
                resume_checkpoint="best_accuracy")
     plan = resume(repo, data, weight, root, epochs=16,
                   resume_checkpoint="best_accuracy")
-    assert '"best_accuracy"' in " ".join(plan["args"])
+    assert str(root / RUN_ID / "best_accuracy") in " ".join(plan["args"])
     assert plan["resume_from"]["checkpoint"] == "best_accuracy"
 
 
