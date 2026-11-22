@@ -1,0 +1,35 @@
+name: LocalOCR reviewed-test regression
+
+on:
+  push:
+    branches:
+      - "feat/reviewed-test-live-benchmark-*"
+  pull_request:
+    paths:
+      - "localocr/**"
+      - "tests/test_live_evaluation.py"
+      - ".github/workflows/reviewed-test.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  reviewed-test:
+    name: Python 3.11 / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install isolated test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Syntax and focused API regression
+        run: |
+          python -m compileall -q localocr tests/test_live_evaluation.py
+          python -m pytest -q tests/test_live_evaluation.py tests/test_dataset.py tests/test_api.py

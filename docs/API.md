@@ -36,6 +36,7 @@
 | `POST /v1/training/cancel` | 终止当前本地训练任务 | 无 |
 | `GET /v1/training/history` | 查看已保存的训练任务记录，重启后无法确认状态的任务标为 unknown | `limit` 可选 |
 | `POST /v1/evaluation/recognition` | 在明确保留的测试集计算 CER 与整行精确匹配率 | `dataset_dir`, `predictions_path` 本地绝对路径 |
+| `POST /v1/evaluation/reviewed-test` | 用已安装本地引擎评测人工审核 test 组的文字区域 | `engine`, `limit` (1–20，默认 5), `offset` |
 | `GET /v1/models` | 列出已登记的本地模型元数据和 SHA-256 | 无 |
 | `POST /v1/models/register` | 仅登记已完成训练任务的本地 `.pdparams` 权重 | `run_id`, `filename` |
 
@@ -74,3 +75,17 @@
 ## 防护边界
 
 固定监听 `127.0.0.1`，只接受本地图片内容，不支持远程 URL。配置域名为 `localhost`、`127.0.0.1`；无 CORS 跨域授权，API 需随机密钥；UI 使用无 CDN 的静态资源和 CSP 响应头。不要把本地服务端口通过隧道或代理对外开放。
+
+## 直接评测现有 OCR 引擎（无需预测文件）
+
+在「标注工作台」给自己拥有的图片标注文字，人工审核，并将它们明确划入 `test` 组。随后点击「评估测试集（首批）」。新的接口会在**本机**按标注框裁剪文字区域，使用所选已安装引擎推理，与人工审核真值比较。
+
+```http
+POST /v1/evaluation/reviewed-test
+X-API-Key: <本机密钥>
+Content-Type: application/json
+
+{"engine":"auto","limit":5,"offset":0}
+```
+
+返回 `evaluated_samples` / `evaluated_regions` / `cer` / `exact_match_rate` / `inference_ms_mean` / `next_offset` / `has_more`。一次最多 40 个文字区域；超限则返回 400，可减少每批图片数量。**每批次指标不能直接冒充整个测试集指标**。结果只计算 **OCR 文字识别**，不包含检测、网页验证码验证或在线注册。原始人工标注、OCR 文本不会出现在评估响应中，只返回有误差的区域索引、长度和编辑距离，不会修改数据库、保存预测内容或启动训练。未安装引擎返回 503；没有已审核 `test` 样本返回 400。

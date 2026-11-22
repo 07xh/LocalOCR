@@ -297,6 +297,42 @@
       })
     }));
   }));
+  let evaluatedNextOffset = 0;
+  async function runLocalBenchmark(nextPage = false) {
+    const offset = nextPage ? evaluatedNextOffset : 0;
+    const select = el('eval-local-engine');
+    const runButton = el('eval-local-run');
+    const nextButton = el('eval-local-next');
+    runButton.disabled = true;
+    nextButton.disabled = true;
+    try {
+      const report = await request('/v1/evaluation/reviewed-test', {
+        method: 'POST',
+        body: JSON.stringify({engine: select.value, limit: 5, offset})
+      });
+      evaluatedNextOffset = report.next_offset;
+      el('aux-output').textContent =
+        '本地识别准确率 · 已人工审核的独立测试集（仅本批）\n' +
+        '引擎：' + report.actual_engines.join(', ') +
+        ' | 测试图片：' + report.evaluated_samples +
+        ' | 文本区域：' + report.evaluated_regions +
+        '\n区域完全正确：' + report.exact_matches + '/' + report.evaluated_regions +
+        '（' + (report.exact_match_rate * 100).toFixed(2) + '%）' +
+        '\n字符错误率 CER：' + (report.cer * 100).toFixed(2) + '%' +
+        ' | 单区域平均耗时：' + report.inference_ms_mean + ' ms' +
+        '\n已评估图片偏移：' + offset + ' → ' + report.next_offset +
+        ' / ' + report.available_test_samples +
+        (report.has_more ? '\n还有下一批；各批次结果不能直接当整体准确率。' : '\n当前没有后续批次。') +
+        '\n错误示例（不返回原始标注文本）：\n' +
+        JSON.stringify(report.error_examples, null, 2);
+      nextButton.disabled = !report.has_more;
+      toast('本地 OCR 测试完成，结果未写入标注库');
+    } finally {
+      runButton.disabled = false;
+    }
+  }
+  el('eval-local-run').addEventListener('click', () => attempt(() => runLocalBenchmark()));
+  el('eval-local-next').addEventListener('click', () => attempt(() => runLocalBenchmark(true)));
   el('eval-run').addEventListener('click', () => attempt(async () => {
     showAux(await request('/v1/evaluation/recognition', {
       method: 'POST', body: JSON.stringify({
