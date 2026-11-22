@@ -169,6 +169,11 @@ def create_app(service: OCRService | None = None, token: str | None = None,
     def js():
         return FileResponse(Path(__file__).parent / "web" / "studio.js", media_type="text/javascript")
 
+    @app.get("/assets/quality_report.js")
+    def quality_report_js():
+        return FileResponse(Path(__file__).parent / "web" / "quality_report.js",
+                            media_type="text/javascript")
+
     @app.get("/v1/samples", dependencies=[Depends(authorize)])
     def samples(limit: int = 50, offset: int = 0):
         if limit < 1 or limit > 100 or offset < 0:

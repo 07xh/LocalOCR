@@ -55,6 +55,10 @@ def test_studio_served_with_local_assets(client):
     assert "frame-ancestors 'none'" in html.headers["content-security-policy"]
     assert client.get("/assets/studio.js").status_code == 200
     assert client.get("/assets/studio.css").status_code == 200
+    report = client.get("/assets/quality_report.js")
+    assert report.status_code == 200
+    assert "LocalOCRQualityReport" in report.text
+    assert '/assets/quality_report.js' in html.text
 
 
 def test_dataset_requires_auth(client):

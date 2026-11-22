@@ -102,3 +102,10 @@ Content-Type: application/json
 服务端对每个分页结果计算已审核测试图片 ID/修订号的 SHA-256 指纹（不是模型权重哈希）。一张测试图片的标注、状态或数据集分组变化时，新的指纹会变化；页面检测到前后不一致会中止汇总。数据集在单次推理过程中变化时，服务器也拒绝返回旧标签结果。这是对一致性的检测，**不提供阻止其他进程修改数据的长期锁**。
 
 注册的 `.pdparams` 是 PaddleOCR 训练检查点元数据，不等同于已转换可加载的 RapidOCR ONNX 权重。当前工作台的引擎选择只在已安装的 RapidOCR / Tesseract 之间选择，**不表示已完成自训练模型上线、实时切换或回滚**。
+
+## 本地工作台 JSON 质量报告
+
+`/assets/quality_report.js` 是本地静态资源，与 `/assets/studio.js` 同源加载，不使用云端服务；报告计算只发生在浏览器当前页面，并不新增服务端存储或联网接口。工具的 `localocr-reviewed-test-quality-v1` 报告包含 `format`、`generated_at`、`requested_engine`、`actual_engines`、`evaluation`（含 `dataset_fingerprint`、`complete`、`status`、覆盖数量）以及 `metrics`（总精确匹配、全量加权 CER、耗时、分组统计）。
+
+对测试集扫描按照 `next_offset` 连续推进，并核对已审核测试集版本指纹、样本总数、每页区域/长度分组数量的相符性；发现重叠页或计数不一致即停止，防止将错误分批结果拼成“完整准确率”。未完成时 `complete=false`，`status` 标为 `cancelled`、`limit_reached`、`invalidated` 或 `failed`。单次最多累计 150 张，超过上限显示部分报告；**批次耗时百分位无法直接加权平均，因此汇总仅报告全批次总耗时与平均耗时**。下载内容仅包含汇总指标和不超过 10 条错误区域的非明文样本 ID/编辑距离/长度，绝不包含正确/预测文本与图片。**用户主动下载的 JSON 文件是本地文件，请自行决定是否对外分享**。
+
