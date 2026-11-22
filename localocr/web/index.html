@@ -67,6 +67,26 @@
         <button type="button" id="train-cancel" class="btn">停止训练</button>
       </div>
       <pre id="train-output" class="training-output" role="status" aria-live="polite">训练尚未启动。</pre>
+      <section class="aux-tools">
+        <h3>训练记录与模型版本</h3>
+        <div class="training-actions">
+          <button id="train-history" type="button" class="btn">查看历史任务</button>
+          <button id="model-list" type="button" class="btn">查看已登记模型</button>
+        </div>
+        <div class="training-fields">
+          <label for="model-run">已完成任务 ID</label><input id="model-run" autocomplete="off" placeholder="32 位训练任务 ID">
+          <label for="model-file">模型权重文件名</label><input id="model-file" autocomplete="off" value="best_accuracy.pdparams">
+        </div>
+        <div class="training-actions"><button id="model-register" type="button" class="btn">登记训练产物（不自动启用）</button></div>
+        <h3>独立测试集评估</h3>
+        <p class="fineprint">把同一模型在保留测试集上的识别结果整理成 JSONL：每行为 {"image":"rec/test/....png","text":"识别结果"}。只统计测试集，不使用训练/验证集评估。</p>
+        <div class="training-fields">
+          <label for="eval-data">测试数据集解压目录</label><input id="eval-data" autocomplete="off" placeholder="包含 rec_gt_test.txt">
+          <label for="eval-predictions">预测结果 JSONL 路径</label><input id="eval-predictions" autocomplete="off" placeholder="本机 predictions.jsonl 路径">
+        </div>
+        <div class="training-actions"><button id="eval-run" type="button" class="btn">计算 CER / 整行正确率</button></div>
+        <pre id="aux-output" class="training-output" aria-live="polite">尚无训练历史或评估报告。</pre>
+      </section>
     </details>
     <div id="notice" role="status" class="notice" aria-live="polite"></div>
   </main>
