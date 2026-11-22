@@ -34,6 +34,14 @@
 - 新增独立测试集 CER/整行正确率离线计分器、训练记录持久化与历史、模型元数据 SHA-256 登记；新增部分均完成单元/API 测试。
 - **限制**：模型注册不验证其可被推理引擎加载；离线评估使用用户提供的预测 JSONL；尚未完成真实 PaddleOCR 模型微调、Windows 桌面端训练、模型切换与回滚验收。
 
+## PR #4 本地检查点续训验收（2026-11-22）
+
+- PR：https://github.com/07xh/LocalOCR/pull/4 （已合并）
+- CI：https://github.com/07xh/LocalOCR/actions/runs/45039142174 ，全部 3 个 job 成功；API/数据集/训练管理回归 **51 passed, 3 skipped**。
+- Linux RapidOCR 真模型推理和 Windows RapidOCR 真模型推理持续通过。
+- 已测试本地断点续训参数构造、来源任务限制、`.pdparams/.pdopt/.states` 检查、标签哈希变更拒绝、已完成任务轮次保护、历史检查点候选及 API 鉴权。
+- **仍未完成 PaddleOCR 真实模型分段训练再恢复**，因此不能宣称现有功能已实机验证到最终精度。
+
 ## 未完成的环境验收
 
 - **当前容器环境**：曾因 DNS/包源问题无法直接安装 RapidOCR；现已由 GitHub Actions 的 Linux/Windows 真模型运行补足该项 CI 验证，当前容器本机环境仍未安装。
