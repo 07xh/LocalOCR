@@ -8,7 +8,7 @@ on:
       - 'pyproject.toml'
       - '.github/workflows/ocr-tests.yml'
   push:
-    branches: [main, feat/rapidocr-paddle-export-20261122]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
