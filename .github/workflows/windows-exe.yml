@@ -27,7 +27,7 @@ jobs:
           python -m pip install "pyinstaller>=6,<7"
       - name: Bundle offline OCR models, local UI and dependencies
         run: |
-          pyinstaller --noconfirm --clean --onedir --console --name LocalOCR --collect-all localocr --collect-all rapidocr --collect-all onnxruntime --collect-submodules uvicorn --hidden-import uvicorn.logging --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.lifespan.on scripts/windows_entry.py
+          pyinstaller --noconfirm --clean --onedir --console --name LocalOCR --collect-all localocr --collect-all rapidocr --collect-all onnxruntime --collect-submodules uvicorn --hidden-import localocr.api --hidden-import fastapi --hidden-import starlette --hidden-import pydantic --hidden-import anyio --hidden-import uvicorn.logging --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.lifespan.on scripts/windows_entry.py
       - name: Run real frozen-executable acceptance
         run: python scripts/smoke_windows_bundle.py dist/LocalOCR/LocalOCR.exe
       - name: Prepare distribution
