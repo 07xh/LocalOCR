@@ -73,7 +73,7 @@ with urlopen(req, timeout=90) as response:
 
 ### 断点续训（可选）
 
-训练面板现在允许填写「恢复既有训练」任务 ID，并选择 `latest` 或 `best_accuracy`。进入「查看历史任务」确认可用的 `resume_candidates`，再填入原任务的本机 PaddleOCR 目录、数据集和预训练权重。通过「检查配置」之后才启动新的训练任务，原产物不会被覆盖。仅当原任务已经结束、存在完整的模型/优化器/训练状态文件并且原始训练设置和训练/验证标签没有改变，才允许恢复。此功能需要在真实 PaddleOCR 微调环境进一步验收。
+训练面板现在允许填写「恢复既有训练」任务 ID，并选择 `latest` 或 `best_accuracy`。进入「查看历史任务」确认可用的 `resume_candidates`，再填入原任务的本机 PaddleOCR 目录、数据集和预训练权重。通过「检查配置」之后才启动新的训练任务，原产物不会被覆盖。仅当原任务已经结束、存在完整的模型/优化器/训练状态文件并且原始训练设置和训练/验证标签没有改变，才允许恢复。此功能已在 Linux CI 中使用官方 PaddleOCR 和合成文字数据验证了真实训练、断点续训及推理；Windows 端和实际个人数据仍待验收。
 
 ### 本地 PaddleOCR 模型微调入口
 
@@ -85,7 +85,7 @@ with urlopen(req, timeout=90) as response:
 4. 输入 PaddleOCR 源码目录、解压数据目录、权重路径；使用「检查配置」预检。预检检查至少 2 张训练文字裁剪、1 张验证文字裁剪、路径存在且无越界；不自动拿测试数据训练。
 5. 「启动训练」将运行本机 `tools/train.py`（不经过 Shell），可以刷新日志、取消任务。成功完成后会在任务输出目录发现 `.pdparams` 模型文件；**不会自动把训练结果替换掉 RapidOCR 正在使用的模型**。
 
-默认 CPU、10 轮、batch=4；小样本应先降低 batch size。模型训练执行效果依赖本机 PaddlePaddle、内存和配置，**仅有训练入口不意味着模型训练已经实机成功**。这不是云端训练服务，也不会向外发送标注图片。
+默认 CPU、10 轮、batch=4；小样本应先降低 batch size。模型训练执行效果依赖本机 PaddlePaddle、内存和配置，**现已在 Linux CI 使用合成数据真实跑通训练与续训，但不代表在实际图片上达到所需准确率**。这不是云端训练服务，也不会向外发送标注图片。
 
 其他接口请查看 [`docs/API.md`](docs/API.md)。成功响应包含 `engine`, `text`, `lines`, `width`, `height`, `elapsed_ms`。OCR 的模型猜测**不会自动存为真值**，需要人工核对保存；只审核过的样本会进入默认 ZIP 导出。
 
@@ -113,6 +113,6 @@ LocalOCR/
 
 ## 实际限制与后续
 
-现阶段是**可运行的本地 OCR + 数据标注工作台源码**，**并非完整训练软件或已经发布的 EXE**。已添加 PaddleOCR 检测标注格式导出，已通过 Linux/Windows CI 的 RapidOCR 真实模型推理测试；尚未完成 Windows UI 实机验收、断网安装验收和在真实数据集上的实际模型微调验收。代码不包含任何第三方网站验证码在线验证/自动注册操作。
+现阶段是**可运行的本地 OCR + 数据标注工作台源码**，**并非完整训练软件或已经发布的 EXE**。已添加 PaddleOCR 检测标注格式导出，已通过 Linux/Windows CI 的 RapidOCR 真实模型推理测试；已完成 Linux CI 合成数据的实际训练、续训与模型推理链路；Windows UI 实机、便携版打包和真实图片精度仍待验收。代码不包含任何第三方网站验证码在线验证/自动注册操作。
 
 测试：`python -m pip install -e '.[dev,tesseract]'` 后运行 `python -m pytest -q`。参考项目及许可证核查入口见 [`docs/SOURCES.md`](docs/SOURCES.md)。
