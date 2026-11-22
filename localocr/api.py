@@ -53,6 +53,8 @@ class TrainingRequest(BaseModel):
     epochs: int = Field(default=10, ge=1, le=50)
     batch_size: int = Field(default=4, ge=1, le=32)
     use_gpu: bool = False
+    resume_run_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+    resume_checkpoint: Literal["latest", "best_accuracy"] = "latest"
 
 
 class RecognitionEvaluationRequest(BaseModel):
@@ -256,6 +258,8 @@ def create_app(service: OCRService | None = None, token: str | None = None,
             return build_plan(
                 req.paddle_repo, req.dataset_dir, req.pretrained_model,
                 epochs=req.epochs, batch_size=req.batch_size, use_gpu=req.use_gpu,
+                resume_run_id=req.resume_run_id,
+                resume_checkpoint=req.resume_checkpoint,
             )
         except (TrainingError, OSError) as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
