@@ -30,7 +30,7 @@
         <div class="panel-header"><h2>图片样本</h2><label class="btn small" for="files">+ 导入</label><input id="files" type="file" multiple accept="image/png,image/jpeg,image/webp,image/bmp,image/tiff" hidden></div>
         <div class="import-hint">导入本地图片 → 框选区域 → 修正文字 → 审核</div>
         <div id="sample-list" class="sample-list" aria-live="polite"><p class="empty">连接后显示样本</p></div>
-        <div class="aside-bottom"><button id="refresh" class="btn ghost">刷新</button><button id="export" class="btn ghost" title="只导出已审核的样本">导出已审核 ZIP</button><button id="export-paddle" class="btn ghost" title="导出人工审核的 PaddleOCR 检测标注（不包含模型训练）">PaddleOCR 检测集</button></div>
+        <div class="aside-bottom"><button id="refresh" class="btn ghost">刷新</button><button id="export" class="btn ghost" title="只导出已审核的样本">导出已审核 ZIP</button><button id="export-paddle" class="btn ghost" title="导出人工审核的 PaddleOCR 检测标注（不包含模型训练）">PaddleOCR 检测集</button><button id="export-rec" class="btn ghost" title="导出已审核并明确分组的裁剪文字识别集">PaddleOCR 识别集</button></div>
       </aside>
       <section class="editor" aria-label="图片标注编辑器">
         <div class="editor-toolbar"><div><h2 id="image-title">选择图片开始标注</h2><span id="image-meta">可将 OCR 识别结果作为建议，人工检查后再保存</span></div><div class="tool-actions"><button id="suggest" class="btn" disabled>OCR 建议</button><button id="save" class="btn primary" disabled>保存标注</button></div></div>
@@ -45,10 +45,29 @@
           <label for="split">数据集划分</label><select id="split" disabled><option value="unassigned">未分配</option><option value="train">训练集</option><option value="val">验证集</option><option value="test">测试集</option></select>
           <div class="buttons"><button id="metadata-save" class="btn" disabled>保存属性</button><button id="review" class="btn" disabled>标记为已审核</button></div>
           <button id="delete" class="text-danger" disabled>删除当前样本</button>
-          <p class="fineprint">只有人工审核过的样本才能导出为训练数据。模型训练和微调尚未接入。</p>
+          <p class="fineprint">只有人工审核过的样本才能导出为训练数据。训练入口位于下方折叠面板，需本机安装 PaddlePaddle 和官方源码。</p>
         </div>
       </aside>
     </div>
+    <details class="training-panel">
+      <summary>本地模型训练 · PaddleOCR 识别模型</summary>
+      <p class="fineprint">先导出上方「PaddleOCR 识别集」并解压。训练仅使用本机的 PaddleOCR 源码、预训练权重和已审核数据，不自动下载。正式训练可能消耗较多计算资源。</p>
+      <div class="training-fields">
+        <label for="train-repo">本机 PaddleOCR 源码目录</label><input id="train-repo" placeholder="例如 D:\\PaddleOCR" autocomplete="off">
+        <label for="train-data">已解压的识别数据集目录</label><input id="train-data" placeholder="包含 rec_gt_train.txt / rec_gt_val.txt" autocomplete="off">
+        <label for="train-weight">本机预训练模型 .pdparams 文件</label><input id="train-weight" placeholder="例如 D:\\models\\PP-OCRv5_mobile_rec_pretrained.pdparams" autocomplete="off">
+        <label for="train-epochs">训练轮次（1–50）</label><input id="train-epochs" type="number" min="1" max="50" value="10">
+        <label for="train-batch">单批样本数（1–32）</label><input id="train-batch" type="number" min="1" max="32" value="4">
+        <label for="train-gpu">设备</label><select id="train-gpu"><option value="false">CPU（无 GPU 也能配置，训练可能很慢）</option><option value="true">GPU（需另行安装匹配的 PaddlePaddle）</option></select>
+      </div>
+      <div class="training-actions">
+        <button type="button" id="train-plan" class="btn">检查配置</button>
+        <button type="button" id="train-start" class="btn primary">启动训练</button>
+        <button type="button" id="train-status" class="btn">刷新状态</button>
+        <button type="button" id="train-cancel" class="btn">停止训练</button>
+      </div>
+      <pre id="train-output" class="training-output" role="status" aria-live="polite">训练尚未启动。</pre>
+    </details>
     <div id="notice" role="status" class="notice" aria-live="polite"></div>
   </main>
 </body>
