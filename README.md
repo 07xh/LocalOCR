@@ -8,11 +8,11 @@
 - **API**：只绑定本机 `127.0.0.1:18765` 的 FastAPI 服务，需要持久化随机 API Key；Base64 PNG/JPEG/WEBP/BMP/TIFF 输入。
 - **数据集**：本地 SQLite + 原图转 PNG，重复图片去重、人工审核、版本冲突保护、train/val/test 数据集分组、原 JSONL ZIP 导出，并新增 PaddleOCR **文字检测**和**文字识别**训练数据 ZIP（仅人工审核数据，不改变原 API）。
 - **标注界面**：内置本地页面，支持导入、预览、鼠标框选、OCR 建议、手动纠错、保存、审核。
-- **测试**：原有 25 项 Python 单元/API 测试与真实 Tesseract OCR 此前通过；新增 PaddleOCR 格式/API 回归测试和 Linux/Windows RapidOCR **真实模型** CI 验收流程，最新 CI 已通过：单元/API 回归 51 passed、3 skipped，Linux 真模型 1 passed、1 skipped，Windows 真模型 2 passed。Windows 浏览器交互与实际部署仍需验收。
+- **测试**：原有 25 项 Python 单元/API 测试与真实 Tesseract OCR 此前通过；新增 PaddleOCR 格式/API 回归测试和 Linux/Windows RapidOCR **真实模型** CI 验收流程，最新 CI 已通过：单元/API 回归 63 passed、3 skipped，Linux 真模型 1 passed、1 skipped，Windows 真模型 2 passed。Windows 浏览器交互与实际部署仍需验收。
 
 ## Windows 便携 EXE（GitHub Actions 构建）
 
-仓库新增 [Windows EXE CI](.github/workflows/windows-exe.yml)；[已通过验收的便携包](https://github.com/07xh/LocalOCR/actions/runs/45040980898/artifacts/14761518276)（需要登录 GitHub 下载，Actions 产物有保留期限），采用 PyInstaller 的 **onedir** 模式，把 LocalOCR、网页资源、RapidOCR 和 ONNX 模型打包成 `LocalOCR-Windows-x64-portable.zip`。只有 CI 中实际运行生成的 EXE 通过模型加载、合成图像识别和本地 Studio API 测试才会上载该文件为 Actions 构建产物（**不是 GitHub Release**）。
+仓库新增 [Windows EXE CI](.github/workflows/windows-exe.yml)；[已通过验收的便携包](https://github.com/07xh/LocalOCR/actions/runs/45042249094/artifacts/14761314423)（需要登录 GitHub 下载，Actions 产物有保留期限），采用 PyInstaller 的 **onedir** 模式，把 LocalOCR、网页资源、RapidOCR 和 ONNX 模型打包成 `LocalOCR-Windows-x64-portable.zip`。只有 CI 中实际运行生成的 EXE 通过模型加载、合成图像识别和本地 Studio API 测试才会上载该文件为 Actions 构建产物（**不是 GitHub Release**）。
 
 GitHub Actions 下载的外层 artifact ZIP 内可能还包含一个分发 ZIP，请逐层解压后，双击 `LocalOCR.exe` 可打开本地工作台。要显示 API Key，在解压目录打开终端执行 `LocalOCR.exe key`。不可只复制 EXE、删掉 `_internal` 目录；模型及 DLL 位于同一分发目录。训练功能仍需另外安装完整 PaddlePaddle/PaddleOCR 和本地预训练权重，**不包含在便携包内**。**在便携版训练面板中必须填写「训练环境 Python」**，例如 `D:\\PaddleEnv\\Scripts\\python.exe`，并确认这个 Python 已安装 PaddlePaddle。软件在启动训练前会尝试在该环境导入 PaddlePaddle，拒绝误用 `LocalOCR.exe` 自身启动训练。
 
