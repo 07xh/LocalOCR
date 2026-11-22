@@ -33,3 +33,5 @@ jobs:
         run: |
           python -m compileall -q localocr tests/test_live_evaluation.py
           python -m pytest -q tests/test_live_evaluation.py tests/test_dataset.py tests/test_api.py
+      - name: Validate browser JavaScript syntax
+        run: node --check localocr/web/studio.js
