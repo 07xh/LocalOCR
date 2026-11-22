@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from . import __version__
 from .dataset import DatasetStore, DatasetError, MissingSample, VersionConflict
 from .engine import EngineUnavailable, OCRService
+from .doctor import diagnose
 from .image_io import InvalidImage, decode_base64
 from .paddle_export import export_detection_zip
 from .rec_export import export_recognition_zip
@@ -137,6 +138,11 @@ def create_app(service: OCRService | None = None, token: str | None = None,
     @app.get("/v1/engines", dependencies=[Depends(authorize)])
     def engines():
         return {"available": engine.backends(), "auto_priority": ["rapidocr", "tesseract"]}
+
+    @app.get("/v1/diagnostics", dependencies=[Depends(authorize)])
+    def diagnostics():
+        """Local-only readiness checks; never returns secret values or paths."""
+        return diagnose(deep=False)
 
     @app.post("/v1/ocr", dependencies=[Depends(authorize)])
     def recognize(req: OCRRequest):
