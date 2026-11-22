@@ -60,4 +60,4 @@ def test_real_rapidocr_chinese_when_font_available():
     assert result.lines, result
     # Report the raw output; Chinese character-exact-match evaluation will use
     # a fixed, human-reviewed test corpus rather than a runner-dependent font.
-    print("Chinese real-model smoke output:", result.text)
+    print("Chinese real-model smoke output:", ascii(result.text))
