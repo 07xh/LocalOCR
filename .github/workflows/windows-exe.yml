@@ -23,7 +23,7 @@ jobs:
           python-version: '3.11'
       - name: Install project and binary packager
         run: |
-          python -m pip install -e ".[rapid]"
+          python -m pip install ".[rapid]"
           python -m pip install "pyinstaller>=6,<7"
       - name: Bundle offline OCR models, local UI and dependencies
         run: |
