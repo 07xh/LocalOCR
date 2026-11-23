@@ -20,6 +20,10 @@ def main() -> int:
     sub.add_parser("engines", help="show locally available OCR backends")
     doctor = sub.add_parser("doctor", help="check bundled models, local storage and Studio assets")
     doctor.add_argument("--deep", action="store_true", help="run synthetic local RapidOCR inference")
+    export = sub.add_parser("export-model", help="stage a registered checkpoint as a Paddle inference model (not ONNX)")
+    export.add_argument("model_id", help="20-character ID from the local model registry")
+    export.add_argument("--python", required=True, dest="training_python",
+                        help="external PaddlePaddle environment Python executable")
 
     recog = sub.add_parser("recognize", help="recognize a local image file")
     recog.add_argument("image", type=Path)
@@ -36,6 +40,17 @@ def main() -> int:
         report = diagnose(deep=args.deep)
         print(json.dumps(report, ensure_ascii=True, indent=2))
         return 0 if report["ready"] else 1
+    if args.command == "export-model":
+        from .model_export import export_paddle_checkpoint
+        from .models import ModelRegistry
+        from .training import TrainingError
+        try:
+            report = export_paddle_checkpoint(ModelRegistry(), args.model_id,
+                                              args.training_python)
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 0
+        except (TrainingError, OSError) as exc:
+            parser.exit(1, "Export error: %s\n" % exc)
     if args.command in ("serve", "studio"):
         if not 1024 <= args.port <= 65535:
             parser.error("port must be 1024-65535")
