@@ -71,12 +71,14 @@ class OCRService:
             except EngineUnavailable:
                 raise
             except Exception as exc:
-                if chosen != "rapidocr":
-                    raise
-                self._rapid = None
+                if chosen == "rapidocr":
+                    self._rapid = None
+                    raise EngineUnavailable(
+                        "RapidOCR model initialization/inference failed; verify ONNX Runtime "
+                        "and local model files, then run the real-model smoke test"
+                    ) from exc
                 raise EngineUnavailable(
-                    "RapidOCR model initialization/inference failed; verify ONNX Runtime "
-                    "and local model files, then run the real-model smoke test"
+                    "Tesseract OCR inference failed; verify the local executable and language data"
                 ) from exc
         return OCRResult(engine=chosen, text="\n".join(l.text for l in lines),
                          lines=lines, width=image.width, height=image.height,
