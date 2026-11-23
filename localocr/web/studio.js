@@ -258,7 +258,33 @@
     displayTrainingStatus(status);
     toast('训练任务已启动，请通过状态与日志确认真实训练是否成功');
   }
+  let trainingPollTimer = null;
+  function stopTrainingPolling() {
+    if (trainingPollTimer !== null) clearInterval(trainingPollTimer);
+    trainingPollTimer = null;
+  }
+  function syncTrainingPolling(status) {
+    if (status.status !== 'running' || document.hidden || !key) {
+      stopTrainingPolling();
+      return;
+    }
+    if (trainingPollTimer !== null) return;
+    trainingPollTimer = setInterval(async () => {
+      if (document.hidden || !key) { stopTrainingPolling(); return; }
+      try {
+        displayTrainingStatus(await request('/v1/training/status'));
+      } catch (e) {
+        stopTrainingPolling();
+        toast('训练状态更新失败：' + e.message, true);
+      }
+    }, 5000);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopTrainingPolling();
+    else if (key) attempt(trainingStatus);
+  });
   function displayTrainingStatus(status) {
+    syncTrainingPolling(status);
     el('train-output').textContent =
       '任务状态：' + status.status +
       (status.id ? '\n任务：' + status.id : '') +
