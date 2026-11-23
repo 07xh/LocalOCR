@@ -139,21 +139,42 @@ class DatasetStore:
         binary = _encode_png(image)
         digest = sha256(binary).hexdigest()
         with self._lock:
-            with self._connect() as con:
-                old = con.execute("SELECT * FROM samples WHERE digest=?", (digest,)).fetchone()
-                if old:
-                    return {**self._as_dict(old), "duplicate": True}
-                sid = uuid4().hex
-                # Generated UUID-only path; never use user filename/path as a destination.
-                (self.images / f"{sid}.png").write_bytes(binary)
-                now = _now()
-                con.execute("""INSERT INTO samples
-                    (id,digest,width,height,source,split,status,annotations,revision,created_at,updated_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                    (sid, digest, image.width, image.height, source.strip() or "local",
-                     "unassigned", "draft", "[]", 1, now, now))
-                row = con.execute("SELECT * FROM samples WHERE id=?", (sid,)).fetchone()
-                return {**self._as_dict(row), "duplicate": False}
+            created_path = None
+            sid = None
+            try:
+                with self._connect() as con:
+                    old = con.execute("SELECT * FROM samples WHERE digest=?", (digest,)).fetchone()
+                    if old:
+                        return {**self._as_dict(old), "duplicate": True}
+                    sid = uuid4().hex
+                    # Exclusive create prevents a UUID collision from overwriting an image.
+                    image_path = self.images / f"{sid}.png"
+                    with image_path.open("xb") as stream:
+                        created_path = image_path
+                        stream.write(binary)
+                    now = _now()
+                    con.execute("""INSERT INTO samples
+                        (id,digest,width,height,source,split,status,annotations,revision,created_at,updated_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                        (sid, digest, image.width, image.height, source.strip() or "local",
+                         "unassigned", "draft", "[]", 1, now, now))
+                    row = con.execute("SELECT * FROM samples WHERE id=?", (sid,)).fetchone()
+                    return {**self._as_dict(row), "duplicate": False}
+            except Exception:
+                # A failed insert/commit can leave an image without a database row.
+                # If commit status cannot be checked, keep the image rather than
+                # risk deleting a valid sample. A later integrity scan can report it.
+                if created_path is not None and sid is not None:
+                    try:
+                        with sqlite3.connect(self.db, timeout=1) as verify:
+                            exists = verify.execute(
+                                "SELECT 1 FROM samples WHERE id=?", (sid,)
+                            ).fetchone()
+                        if exists is None:
+                            created_path.unlink(missing_ok=True)
+                    except (OSError, sqlite3.Error):
+                        pass
+                raise
 
     def get(self, sample_id: str) -> dict:
         _validate_id(sample_id)

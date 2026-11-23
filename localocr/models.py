@@ -31,7 +31,12 @@ class ModelRegistry:
         with self._lock:
             if not self.index.is_file():
                 return []
-            records = json.loads(self.index.read_text(encoding="utf-8"))
+            try:
+                records = json.loads(self.index.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise TrainingError(
+                    "Model registry is unreadable or invalid JSON; restore a known-good backup"
+                ) from exc
             if not isinstance(records, list):
                 raise TrainingError("Model registry format is invalid")
             return records
