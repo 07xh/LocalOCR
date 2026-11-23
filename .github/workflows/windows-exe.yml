@@ -9,12 +9,18 @@ on:
       - '.github/workflows/windows-exe.yml'
       - 'pyproject.toml'
   push:
-    branches: [main, feat/windows-package-training-smoke-20261122]
+    branches: [main]
+    tags: ['v*.*.*']
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   portable:
     runs-on: windows-latest
+    permissions:
+      contents: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -34,8 +40,19 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive -Path dist/LocalOCR/* -DestinationPath LocalOCR-Windows-x64-portable.zip -CompressionLevel Optimal
+          $hash = (Get-FileHash -Algorithm SHA256 LocalOCR-Windows-x64-portable.zip).Hash.ToLowerInvariant()
+          "$hash *LocalOCR-Windows-x64-portable.zip" | Set-Content -Encoding ascii LocalOCR-Windows-x64-portable.zip.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: LocalOCR-Windows-x64-portable
-          path: LocalOCR-Windows-x64-portable.zip
+          path: |
+            LocalOCR-Windows-x64-portable.zip
+            LocalOCR-Windows-x64-portable.zip.sha256
           retention-days: 7
+      - name: Publish prerelease only after Windows smoke test on version tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$env:GITHUB_REF_NAME" LocalOCR-Windows-x64-portable.zip LocalOCR-Windows-x64-portable.zip.sha256 --verify-tag --prerelease --title "$env:GITHUB_REF_NAME (Windows portable prerelease)" --notes "Windows runner smoke test passed. Personal Windows 10/11 browser and fully disconnected validation are still required before marking this release stable."
