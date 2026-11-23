@@ -89,6 +89,18 @@ with urlopen(req, timeout=90) as response:
 
 训练面板现在允许填写「恢复既有训练」任务 ID，并选择 `latest` 或 `best_accuracy`。进入「查看历史任务」确认可用的 `resume_candidates`，再填入原任务的本机 PaddleOCR 目录、数据集和预训练权重。通过「检查配置」之后才启动新的训练任务，原产物不会被覆盖。仅当原任务已经结束、存在完整的模型/优化器/训练状态文件并且原始训练设置和训练/验证标签没有改变，才允许恢复。此功能已在 Linux CI 中使用官方 PaddleOCR 和合成文字数据验证了真实训练、断点续训及推理；Windows 端和实际个人数据仍待验收。
 
+### 已登记模型的 Paddle 静态图导出（实验性，不会启用模型）
+
+本地已完成训练后，可通过 `/v1/models/register` 登记 `.pdparams`，查询 `/v1/models` 返回的 20 位模型 ID。使用**独立的 PaddlePaddle 环境 Python**执行：
+
+```powershell
+LocalOCR.exe export-model 模型ID --python "D:\\PaddleEnv\\Scripts\\python.exe"
+```
+
+源码运行也支持 `python -m localocr export-model 模型ID --python <python路径>`。程序会核对训练任务是否完成、原注册权重 SHA-256、原训练 PaddleOCR 源码及导出工具，然后调用官方 `tools/export_model.py` 生成 Paddle 静态图，记录 `export.log` 和哈希清单。导出目录在本机配置目录 `training/exports/<模型ID>/`。
+
+**当前仅能生成待验证的 Paddle 静态图，不能认为已完成 ONNX 转换或 RapidOCR 热加载。** 该命令不接入运行中的 OCR 引擎，既不上传数据，也不下载权重。转换和实际启用仍需完成独立测试集质量对比与回滚门禁；详见 [部署闭环设计](docs/MODEL_DEPLOYMENT.md)。
+
 ### 本地 PaddleOCR 模型微调入口
 
 标注工作台底部新增「本地模型训练」折叠栏。操作步骤：
