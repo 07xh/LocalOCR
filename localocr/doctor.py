@@ -90,11 +90,17 @@ def diagnose(*, deep: bool = False) -> dict:
                 Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
             )
             font_path = next((p for p in font_paths if p.is_file()), None)
-            if font_path is None:
+            try:
+                # Pillow bundles a fallback font; do not fail just because
+                # the operating system lacks Arial or DejaVu.
+                if font_path is not None:
+                    font = ImageFont.truetype(str(font_path), 80)
+                else:
+                    font = ImageFont.load_default(size=80)
+            except (OSError, TypeError):
                 result["deep_inference"] = "font_unavailable"
             else:
                 image = Image.new("RGB", (900, 180), "white")
-                font = ImageFont.truetype(str(font_path), 80)
                 ImageDraw.Draw(image).text((30, 30), "HELLO 2026",
                                            font=font, fill="black")
                 try:
